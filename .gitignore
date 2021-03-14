@@ -1,0 +1,36 @@
+# Free Pascal compiled objects and unit headers
+*.o
+*.ppu
+*.rst
+*.compiled
+*.or
+*.a
+
+# Build output directories and binaries
+bin/
+build/
+lib/*.dylib
+lib/*.so
+lib/*.dll
+anvil
+anvil_test
+anvil_bench
+
+# Temporary and test artifacts
+tests/tmp/
+*.tmp
+*.bak
+*.swp
+*~
+.DS_Store
+
+# Python bindings artifacts
+bindings/python/build/
+bindings/python/dist/
+bindings/python/*.egg-info/
+__pycache__/
+*.pyc
+
+# IDE / Editor configuration
+.vscode/
+.idea/
