@@ -12,7 +12,7 @@ program test_runner;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils, Classes, test_crypto;
+  SysUtils, Classes, test_crypto, test_odb;
 
 var
   PassedTests, TotalTests: Integer;
@@ -27,6 +27,7 @@ begin
 
   { Run component suites }
   RunCryptoTests(PassedTests, TotalTests);
+  RunOdbTests(PassedTests, TotalTests);
 
   Writeln;
   Writeln('=====================================================');
