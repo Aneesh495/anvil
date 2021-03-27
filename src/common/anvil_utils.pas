@@ -32,6 +32,7 @@ function ReadPackOffset(var P: PByte; const PEnd: PByte; out Offset: Int64): Boo
 
 { File and directory operations }
 function EnsureDirectoryExists(const DirPath: string): Boolean;
+function DeleteDirectoryRecursive(const DirPath: string): Boolean;
 function ReadEntireFile(const FilePath: string): TByteArray;
 function ReadEntireFileString(const FilePath: string): string;
 procedure WriteEntireFile(const FilePath: string; const Data: array of Byte);
@@ -186,6 +187,31 @@ begin
   if DirectoryExists(DirPath) then
     Exit(True);
   Result := ForceDirectories(DirPath);
+end;
+
+function DeleteDirectoryRecursive(const DirPath: string): Boolean;
+var
+  Rec: TSearchRec;
+  ItemPath: string;
+begin
+  Result := True;
+  if not DirectoryExists(DirPath) then
+    Exit;
+  if FindFirst(JoinPaths(DirPath, '*'), faAnyFile, Rec) = 0 then
+  begin
+    repeat
+      if (Rec.Name <> '.') and (Rec.Name <> '..') then
+      begin
+        ItemPath := JoinPaths(DirPath, Rec.Name);
+        if (Rec.Attr and faDirectory) <> 0 then
+          DeleteDirectoryRecursive(ItemPath)
+        else
+          DeleteFile(ItemPath);
+      end;
+    until FindNext(Rec) <> 0;
+    FindClose(Rec);
+  end;
+  RemoveDir(DirPath);
 end;
 
 function ReadEntireFile(const FilePath: string): TByteArray;
