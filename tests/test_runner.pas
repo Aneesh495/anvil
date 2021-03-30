@@ -12,7 +12,7 @@ program test_runner;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils, Classes, test_crypto, test_odb, test_index;
+  SysUtils, Classes, test_crypto, test_odb, test_index, test_diff;
 
 var
   PassedTests, TotalTests: Integer;
@@ -29,6 +29,7 @@ begin
   RunCryptoTests(PassedTests, TotalTests);
   RunOdbTests(PassedTests, TotalTests);
   RunIndexTests(PassedTests, TotalTests);
+  RunDiffTests(PassedTests, TotalTests);
 
   Writeln;
   Writeln('=====================================================');
