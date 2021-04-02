@@ -25,12 +25,13 @@ type
     FObjectId: TObjectId;
     FObjectType: TObjectType;
     FSize: Int64;
+    function GetObjectId: TObjectId;
   public
     constructor Create; virtual; overload;
     constructor Create(AType: TObjectType); virtual; overload;
     function Serialize: TByteArray; virtual; abstract;
     function ComputeId(Algo: THashAlgorithm = haSHA1): TObjectId;
-    property ObjectId: TObjectId read FObjectId write FObjectId;
+    property ObjectId: TObjectId read GetObjectId write FObjectId;
     property ObjectType: TObjectType read FObjectType;
     property Size: Int64 read FSize;
   end;
@@ -141,6 +142,13 @@ begin
   FObjectType := AType;
   FObjectId := NullObjectId;
   FSize := 0;
+end;
+
+function TAnvilObject.GetObjectId: TObjectId;
+begin
+  if IsNullObjectId(FObjectId) then
+    ComputeId;
+  Result := FObjectId;
 end;
 
 function TAnvilObject.ComputeId(Algo: THashAlgorithm): TObjectId;
