@@ -56,6 +56,7 @@ type
     Name: string;
     Id: TObjectId;
   end;
+  TTreeEntryArray = array of TTreeEntry;
 
   { Tree object representing a directory snapshot }
   TTreeObject = class(TAnvilObject)

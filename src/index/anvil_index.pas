@@ -50,6 +50,7 @@ type
     function Find(const Path: string; Stage: TStageNumber; out Entry: TIndexEntry): Boolean;
     function FindAny(const Path: string; out Entry: TIndexEntry): Boolean;
     function HasConflicts: Boolean;
+    function GetConflictPaths: TStringArray;
     function GetEntry(Index: Integer): TIndexEntry;
 
     function WriteTree(Odb: TObjectDatabase): TObjectId;
@@ -435,6 +436,36 @@ begin
       Exit(True);
   end;
   Result := False;
+end;
+
+function TIndex.GetConflictPaths: TStringArray;
+var
+  I, J: Integer;
+  P: string;
+  Found: Boolean;
+begin
+  SetLength(Result, 0);
+  for I := 0 to FCount - 1 do
+  begin
+    if FEntries[I].Stage > 0 then
+    begin
+      P := FEntries[I].Path;
+      Found := False;
+      for J := 0 to Length(Result) - 1 do
+      begin
+        if Result[J] = P then
+        begin
+          Found := True;
+          Break;
+        end;
+      end;
+      if not Found then
+      begin
+        SetLength(Result, Length(Result) + 1);
+        Result[Length(Result) - 1] := P;
+      end;
+    end;
+  end;
 end;
 
 function TIndex.GetEntry(Index: Integer): TIndexEntry;
