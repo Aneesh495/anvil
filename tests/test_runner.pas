@@ -12,7 +12,7 @@ program test_runner;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils, Classes, test_crypto, test_odb, test_index, test_diff, test_merge, test_ref;
+  SysUtils, Classes, test_crypto, test_odb, test_index, test_diff, test_merge, test_ref, test_worktree;
 
 var
   PassedTests, TotalTests: Integer;
@@ -32,6 +32,7 @@ begin
   RunDiffTests(PassedTests, TotalTests);
   RunMergeTests(PassedTests, TotalTests);
   RunRefTests(PassedTests, TotalTests);
+  RunWorktreeTests(PassedTests, TotalTests);
 
   Writeln;
   Writeln('=====================================================');
