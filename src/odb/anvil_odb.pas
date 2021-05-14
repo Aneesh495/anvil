@@ -63,6 +63,7 @@ type
     destructor Destroy; override;
 
     function Exists(const Id: TObjectId): Boolean;
+    function FindObjectByPrefix(const HexPrefix: string; out FullId: TObjectId): Boolean;
     function ReadObjectRaw(const Id: TObjectId; out ObjType: TObjectType; out Data: TByteArray): Boolean;
     function ReadObject(const Id: TObjectId): TAnvilObject;
     function WriteObjectRaw(ObjType: TObjectType; const Data: Pointer; DataLen: Int64): TObjectId;
@@ -296,6 +297,43 @@ begin
   end;
 
   Result := FLooseBackend.Exists(Id);
+end;
+
+function TObjectDatabase.FindObjectByPrefix(const HexPrefix: string; out FullId: TObjectId): Boolean;
+var
+  AllIds: TObjectIdArray;
+  I: Integer;
+  TargetPrefix: string;
+  PrefixLen: Integer;
+  CandidateHex: string;
+  FoundCount: Integer;
+begin
+  Result := False;
+  FullId := NullObjectId(FAlgo);
+  TargetPrefix := LowerCase(Trim(HexPrefix));
+  PrefixLen := Length(TargetPrefix);
+  if PrefixLen < 4 then Exit;
+
+  AllIds := EnumerateAllObjects;
+  FoundCount := 0;
+
+  for I := 0 to Length(AllIds) - 1 do
+  begin
+    CandidateHex := ObjectIdToHex(AllIds[I]);
+    if Copy(CandidateHex, 1, PrefixLen) = TargetPrefix then
+    begin
+      FullId := AllIds[I];
+      Inc(FoundCount);
+      if FoundCount > 1 then
+      begin
+        { Ambiguous prefix: multiple matches exist }
+        FullId := NullObjectId(FAlgo);
+        Exit(False);
+      end;
+    end;
+  end;
+
+  Result := FoundCount = 1;
 end;
 
 function TObjectDatabase.ReadObjectRaw(const Id: TObjectId; out ObjType: TObjectType; out Data: TByteArray): Boolean;
