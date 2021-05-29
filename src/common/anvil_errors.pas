@@ -81,6 +81,7 @@ const
   ERR_PATCH_APPLY_ERROR      = -13;
   ERR_WORKTREE_DIRTY         = -14;
   ERR_PROTOCOL_ERROR         = -15;
+  ERR_PACKET_LINE            = -16;
 
 implementation
 
