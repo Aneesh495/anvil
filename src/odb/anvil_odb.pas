@@ -56,7 +56,6 @@ type
     FPackfiles: array of TPackfile;
     FPackCount: Integer;
     FCache: TObjectCache;
-    procedure DiscoverPacks;
     function ResolvePackBase(const BaseId: TObjectId; out BaseType: TObjectType; out BaseData: TByteArray): Boolean;
   public
     constructor Create(const AObjectsDir: string; Algo: THashAlgorithm = haSHA1);
@@ -71,6 +70,7 @@ type
 
     function EnumerateAllObjects: TObjectIdArray;
     procedure PackLooseObjects;
+    procedure DiscoverPacks;
 
     property ObjectsDir: string read FObjectsDir;
     property Algorithm: THashAlgorithm read FAlgo;
@@ -248,7 +248,13 @@ var
   Rec: TSearchRec;
   PackPath, IdxPath, BaseName: string;
   PackObj: TPackfile;
+  I: Integer;
 begin
+  for I := 0 to FPackCount - 1 do
+    FPackfiles[I].Free;
+  FPackCount := 0;
+  SetLength(FPackfiles, 0);
+
   PackDir := JoinPaths(FObjectsDir, 'pack');
   if not DirectoryExists(PackDir) then
     Exit;
