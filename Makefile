@@ -33,7 +33,7 @@ bin/anvil: src/cli/anvil_main.pas | dirs
 lib/libanvil.$(DYLIB_EXT): src/lib/libanvil.pas | dirs
 	$(FPC) $(FPC_FLAGS) $(FPC_LIB_FLAGS) -olib/libanvil.$(DYLIB_EXT) src/lib/libanvil.pas
 
-bin/anvil_test: tests/test_runner.pas | dirs
+bin/anvil_test: tests/test_runner.pas $(wildcard tests/unit/*.pas) | dirs
 	$(FPC) $(FPC_FLAGS) -Itests/unit -Itests/integration -Futests/unit -Futests/integration \
 	      -obin/anvil_test tests/test_runner.pas
 
