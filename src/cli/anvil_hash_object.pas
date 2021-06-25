@@ -40,7 +40,6 @@ begin
   if not GetOptionValue(Args, '-t', '', TypeStr) then
     TypeStr := 'blob';
 
-  ObjType := StringToObjectType(TypeStr);
   PosArgs := GetPositionalArgs(Args);
 
   if Length(PosArgs) = 0 then
