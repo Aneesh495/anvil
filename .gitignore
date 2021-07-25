@@ -9,9 +9,10 @@
 # Build output directories and binaries
 bin/
 build/
-lib/*.dylib
-lib/*.so
-lib/*.dll
+/lib/
+*.res
+*.fpc
+*.sh
 anvil
 anvil_test
 anvil_bench

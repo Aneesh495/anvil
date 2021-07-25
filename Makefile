@@ -14,10 +14,10 @@ FPC_FLAGS = -O3 -Mobjfpc -Sh -Sc -Cg -FUbuild -FEbin \
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
     DYLIB_EXT = dylib
-    FPC_LIB_FLAGS = -CD -Cn
+    FPC_LIB_FLAGS = -CD
 else
     DYLIB_EXT = so
-    FPC_LIB_FLAGS = -CD -Cn -k"-fPIC"
+    FPC_LIB_FLAGS = -CD -k"-fPIC"
 endif
 
 .PHONY: all clean dirs test bench lib format help
@@ -26,6 +26,10 @@ all: dirs bin/anvil lib/libanvil.$(DYLIB_EXT) bin/anvil_test bin/anvil_bench
 
 dirs:
 	@mkdir -p build bin lib
+
+anvil: bin/anvil
+
+lib: lib/libanvil.$(DYLIB_EXT)
 
 bin/anvil: src/cli/anvil_main.pas | dirs
 	$(FPC) $(FPC_FLAGS) -obin/anvil src/cli/anvil_main.pas
