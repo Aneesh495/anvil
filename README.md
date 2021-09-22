@@ -164,16 +164,13 @@ repo = Repository.init("/tmp/project")
 with open("/tmp/project/lib.py", "w") as f:
     f.write("def add(a, b): return a + b\n")
 
-repo.add(["lib.py"])
-cid = repo.commit(
-    message="feat: add math library",
-    author_name="Aneesh Krishna",
-    author_email="aneesh@example.com"
-)
+repo.add("lib.py")
+cid = repo.commit(message="feat: add math library")
 print(f"Committed: {cid}")
 
 status = repo.status()
-print(f"Active Branch: {status.branch}, Clean: {status.is_clean}")
+print(f"Clean: {status.is_clean}, Staged: {status.staged_count}")
+repo.close()
 ```
 
 ---
