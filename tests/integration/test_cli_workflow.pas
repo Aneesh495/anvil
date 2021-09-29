@@ -16,7 +16,8 @@ interface
 
 uses
   SysUtils, Classes,
-  anvil_types, anvil_errors, anvil_cli_router, anvil_utils;
+  anvil_types, anvil_errors, anvil_cli_router, anvil_utils,
+  anvil_index, anvil_index_entry;
 
 procedure RunCliWorkflowTests(var PassedTests, TotalTests: Integer);
 
@@ -61,6 +62,8 @@ procedure RunCliWorkflowTests(var PassedTests, TotalTests: Integer);
 var
   OriginalDir, TestDir: string;
   Code: Integer;
+  Index: TIndex;
+  Entry: TIndexEntry;
 begin
   Writeln('=== Running End-to-End CLI Integration Workflow ===');
 
@@ -160,6 +163,21 @@ begin
     { 15. anvil fsck }
     Code := RunCli('fsck', []);
     AssertEquals(0, Code, 'anvil fsck verifies repository integrity', PassedTests, TotalTests);
+
+    { 16. A dot pathspec is scoped to the current directory, not the repository root. }
+    EnsureDirectoryExists(JoinPaths(TestDir, 'nested'));
+    WriteEntireFileString(JoinPaths(TestDir, 'nested/scoped.txt'), 'nested content'#10);
+    WriteEntireFileString(JoinPaths(TestDir, 'root-only.txt'), 'keep untracked'#10);
+    SetCurrentDir(JoinPaths(TestDir, 'nested'));
+    Code := RunCli('add', ['.']);
+    AssertEquals(0, Code, 'anvil add . succeeds from a subdirectory', PassedTests, TotalTests);
+    Index := TIndex.Create(JoinPaths(TestDir, '.anvil/index'));
+    try
+      AssertTrue(Index.Find('nested/scoped.txt', 0, Entry), 'Subdirectory file is staged with its repository-relative path', PassedTests, TotalTests);
+      AssertTrue(not Index.Find('root-only.txt', 0, Entry), 'anvil add . leaves files outside the current directory unstaged', PassedTests, TotalTests);
+    finally
+      Index.Free;
+    end;
 
   finally
     SetCurrentDir(OriginalDir);
