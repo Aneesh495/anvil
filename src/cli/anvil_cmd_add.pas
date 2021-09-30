@@ -91,7 +91,7 @@ begin
       begin
         TargetArg := PosArgs[I];
         if TargetArg = '.' then
-          TargetPath := Ctx.RepoRoot
+          TargetPath := GetCurrentDir
         else
         begin
           if ExtractFilePath(TargetArg) = '' then
