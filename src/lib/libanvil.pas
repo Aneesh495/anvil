@@ -144,6 +144,8 @@ begin
   if not FileExists(FullPath) then Exit(-2);
 
   RelPath := MakeRelativePath(Handle^.Ctx.RepoRoot, FullPath);
+  { MakeRelativePath leaves outside paths absolute. Reject before reading or staging. }
+  if (RelPath = '') or (RelPath[1] = '/') then Exit(-3);
   Data := ReadEntireFile(FullPath);
   if Length(Data) > 0 then
     BlobId := Handle^.Ctx.ODB.WriteObjectRaw(otBlob, @Data[0], Length(Data))

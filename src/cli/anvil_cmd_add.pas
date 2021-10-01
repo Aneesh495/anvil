@@ -69,7 +69,7 @@ var
   Ctx: TRepoContext;
   PosArgs: TStringArray;
   I: Integer;
-  TargetArg, TargetPath: string;
+  TargetArg, TargetPath, RelPath: string;
   Ignore: TIgnoreMatcher;
 begin
   Result := 1;
@@ -98,6 +98,14 @@ begin
             TargetPath := JoinPaths(GetCurrentDir, TargetArg)
           else
             TargetPath := ExpandFileName(TargetArg);
+        end;
+
+        TargetPath := ExpandFileName(TargetPath);
+        RelPath := MakeRelativePath(Ctx.RepoRoot, TargetPath);
+        if (RelPath = '') or (RelPath[1] = '/') then
+        begin
+          PrintError('fatal: pathspec ''' + TargetArg + ''' is outside the repository');
+          Exit;
         end;
 
         if not FileExists(TargetPath) and not DirectoryExists(TargetPath) then
