@@ -88,6 +88,11 @@ begin
   else
     DotDir := JoinPaths(TargetDir, '.anvil');
 
+  { Match the CLI: reinitializing an existing repository must not reset its
+    active branch or overwrite user configuration. }
+  if DirectoryExists(DotDir) and FileExists(JoinPaths(DotDir, 'HEAD')) then
+    Exit(0);
+
   EnsureDirectoryExists(DotDir);
   EnsureDirectoryExists(JoinPaths(DotDir, 'objects'));
   EnsureDirectoryExists(JoinPaths(DotDir, JoinPaths('objects', 'pack')));
