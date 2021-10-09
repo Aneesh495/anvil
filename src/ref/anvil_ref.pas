@@ -392,14 +392,57 @@ end;
 
 function TRefManager.DeleteReference(const RefName: string): Boolean;
 var
-  FullPath: string;
-  I: Integer;
+  FullPath, PackedPath, Content, Updated, Line: string;
+  Lines: TStringArray;
+  I, SpacePos: Integer;
   Ref: TReference;
+  PackedChanged, SkipPeeled: Boolean;
 begin
   Result := False;
+
+  { Remove the on-disk packed entry before its loose override. Otherwise a
+    deleted branch reappears the next time the packed-refs file is loaded.
+    Preserve all unrelated lines, including peeled annotated-tag records. }
+  PackedPath := JoinPaths(FGitDir, 'packed-refs');
+  PackedChanged := False;
+  SkipPeeled := False;
+  Updated := '';
+  if FileExists(PackedPath) then
+  begin
+    Content := ReadEntireFileString(PackedPath);
+    Lines := SplitStringByChar(Content, #10);
+    for I := 0 to Length(Lines) - 1 do
+    begin
+      Line := Lines[I];
+      if SkipPeeled and (Copy(Line, 1, 1) = '^') then
+      begin
+        SkipPeeled := False;
+        Continue;
+      end;
+      SkipPeeled := False;
+      SpacePos := Pos(' ', Line);
+      if (SpacePos > 0) and (Copy(Line, SpacePos + 1, MaxInt) = RefName) then
+      begin
+        PackedChanged := True;
+        SkipPeeled := True;
+        Continue;
+      end;
+      if I > 0 then
+        Updated := Updated + #10;
+      Updated := Updated + Line;
+    end;
+    if PackedChanged and not WriteRefAtomic(PackedPath, Updated) then
+      Exit(False);
+  end;
+
   FullPath := JoinPaths(FGitDir, RefName);
   if FileExists(FullPath) then
-    Result := DeleteFile(FullPath);
+  begin
+    if not DeleteFile(FullPath) then Exit(False);
+    Result := True;
+  end;
+
+  Result := Result or PackedChanged;
 
   for I := FPackedRefs.Count - 1 downto 0 do
   begin
