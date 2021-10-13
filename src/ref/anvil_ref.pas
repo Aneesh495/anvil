@@ -470,7 +470,7 @@ var
     if FindFirst(JoinPaths(DirPath, '*'), faAnyFile, SR) = 0 then
     begin
       repeat
-        if (SR.Name <> '.') and (SR.Name <> '..') and (SR.Name <> '.lock') then
+        if (SR.Name <> '.') and (SR.Name <> '..') and (ExtractFileExt(SR.Name) <> '.lock') then
         begin
           if RelPrefix <> '' then
             ItemRel := RelPrefix + '/' + SR.Name

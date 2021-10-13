@@ -124,8 +124,11 @@ begin
     RefMgr.SetReference('refs/heads/feature', Id2);
     RefMgr.SetReference('refs/tags/v1.0.0', Id1);
 
+    { An in-progress transaction is not another branch. }
+    WriteEntireFileString(JoinPaths(GitDir, 'refs/heads/main.lock'), ObjectIdToHex(Id3) + #10);
     RefList := RefMgr.ListReferences('refs/heads/');
     AssertEquals(2, Length(RefList), 'ListReferences finds 2 branches', PassedTests, TotalTests);
+    DeleteFile(JoinPaths(GitDir, 'refs/heads/main.lock'));
 
     { Pack references }
     RefMgr.PackReferences;
