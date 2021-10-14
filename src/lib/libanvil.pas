@@ -276,6 +276,9 @@ begin
   Handle := PAnvilRepo(Repo);
 
   BranchName := StrPas(Name);
+  FullRef := 'refs/heads/' + BranchName;
+  { Return an error across the C ABI instead of letting SetReference raise. }
+  if not IsValidRefName(FullRef) then Exit(-4);
   if StartRev <> nil then
     StartRevStr := StrPas(StartRev)
   else
@@ -283,7 +286,6 @@ begin
 
   if not ResolveRevision(Handle^.Ctx, StartRevStr, TargetId) then Exit(-2);
 
-  FullRef := 'refs/heads/' + BranchName;
   if Handle^.Ctx.RefMgr.Resolve(FullRef, ExistingId) then Exit(-3);
 
   Handle^.Ctx.RefMgr.SetReference(FullRef, TargetId);
