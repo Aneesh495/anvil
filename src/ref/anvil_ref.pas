@@ -93,12 +93,14 @@ implementation
 
 function IsValidRefName(const Name: string): Boolean;
 var
-  I: Integer;
+  I, ComponentStart: Integer;
+  Component: string;
 begin
-  if (Name = '') or (Name = 'HEAD') then
-    Exit(True);
+  if Name = '' then Exit(False);
+  if Name = 'HEAD' then Exit(True);
 
-  if (Name[1] = '/') or (Name[Length(Name)] = '/') then
+  if (Name[1] = '/') or (Name[Length(Name)] = '/') or
+     (Name[Length(Name)] = '.') or (Name = '@') or (Pos('//', Name) > 0) then
     Exit(False);
 
   if Pos('..', Name) > 0 then
@@ -113,6 +115,17 @@ begin
       ' ', '~', '^', ':', '?', '*', '[', '\': Exit(False);
       #0..#31, #127: Exit(False);
     end;
+  end;
+
+  { Hidden components and lockfile suffixes conflict with reference storage. }
+  ComponentStart := 1;
+  for I := 1 to Length(Name) + 1 do
+  begin
+    if (I <= Length(Name)) and (Name[I] <> '/') then Continue;
+    Component := Copy(Name, ComponentStart, I - ComponentStart);
+    if (Component[1] = '.') or
+       (Copy(Component, Length(Component) - 4, 5) = '.lock') then Exit(False);
+    ComponentStart := I + 1;
   end;
 
   Result := True;
