@@ -206,7 +206,11 @@ begin
     else
       BranchName := 'HEAD';
 
-    Handle^.Ctx.RefMgr.SetReference(BranchName, NewCommitId);
+    try
+      Handle^.Ctx.RefMgr.SetReference(BranchName, NewCommitId);
+    except
+      Exit(-3);
+    end;
 
     ReflogMgr := TReflogManager.Create(Handle^.Ctx.GitDir, Handle^.Ctx.Algo);
     try
@@ -288,7 +292,11 @@ begin
 
   if Handle^.Ctx.RefMgr.Resolve(FullRef, ExistingId) then Exit(-3);
 
-  Handle^.Ctx.RefMgr.SetReference(FullRef, TargetId);
+  try
+    Handle^.Ctx.RefMgr.SetReference(FullRef, TargetId);
+  except
+    Exit(-5);
+  end;
   Result := 0;
 end;
 
