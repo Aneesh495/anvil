@@ -112,6 +112,22 @@ begin
     RefMgr.SetReference('refs/heads/main', Id1);
     AssertTrue(FileExists(JoinPaths(GitDir, 'refs/heads/main')), 'Loose ref file created on disk', PassedTests, TotalTests);
 
+    { A writer must neither overwrite nor remove another writer's lock. }
+    WriteEntireFileString(JoinPaths(GitDir, 'refs/heads/main.lock'), 'other writer');
+    Rejected := False;
+    try
+      RefMgr.SetReference('refs/heads/main', Id2);
+    except
+      on E: EReferenceLocked do Rejected := True;
+    end;
+    AssertTrue(Rejected, 'An existing reference lock rejects a second writer', PassedTests, TotalTests);
+    AssertTrue(FileExists(JoinPaths(GitDir, 'refs/heads/main.lock')), 'An existing lock survives rejection', PassedTests, TotalTests);
+    if FileExists(JoinPaths(GitDir, 'refs/heads/main.lock')) then
+      AssertEqualsStr('other writer', ReadEntireFileString(JoinPaths(GitDir, 'refs/heads/main.lock')), 'Another writer lock content stays unchanged', PassedTests, TotalTests);
+    AssertTrue(RefMgr.Resolve('refs/heads/main', ResolvedId) and ObjectIdEqual(Id1, ResolvedId), 'Rejected lock acquisition leaves the reference unchanged', PassedTests, TotalTests);
+    DeleteFile(JoinPaths(GitDir, 'refs/heads/main.lock'));
+    RefMgr.SetReference('refs/heads/main', Id1);
+
     Ref := RefMgr.GetReference('refs/heads/main');
     AssertTrue(Assigned(Ref), 'GetReference returns valid reference object', PassedTests, TotalTests);
     AssertTrue(Ref.RefType = rtDirect, 'Reference is rtDirect', PassedTests, TotalTests);

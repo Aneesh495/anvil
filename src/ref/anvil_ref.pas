@@ -16,7 +16,7 @@ unit anvil_ref;
 interface
 
 uses
-  SysUtils, Classes,
+  SysUtils, Classes, BaseUnix,
   anvil_types, anvil_errors, anvil_utils;
 
 const
@@ -279,30 +279,38 @@ function TRefManager.WriteRefAtomic(const RefFilePath, Content: string): Boolean
 var
   Dir: string;
   LockPath: string;
-  FS: TFileStream;
+  FS: THandleStream;
+  LockHandle: Integer;
 begin
+  Result := False;
   Dir := ExtractFileDir(RefFilePath);
   EnsureDirectoryExists(Dir);
 
   LockPath := RefFilePath + '.lock';
+  { macOS/Linux: O_EXCL atomically reserves the lock without truncating an
+    existing writer's file. Never clean up a lock we did not acquire. }
+  LockHandle := fpOpen(PChar(LockPath), O_WRONLY or O_CREAT or O_EXCL, &666);
+  if LockHandle < 0 then Exit;
   try
-    FS := TFileStream.Create(LockPath, fmCreate);
     try
-      if Length(Content) > 0 then
-        FS.WriteBuffer(Content[1], Length(Content));
-    finally
-      FS.Free;
+      FS := THandleStream.Create(LockHandle);
+      try
+        if Length(Content) > 0 then
+          FS.WriteBuffer(Content[1], Length(Content));
+      finally
+        FS.Free;
+      end;
+
+      { POSIX rename replaces the old reference atomically. Unlinking the
+        old file first would create a gap and could lose it on failure. }
+      Result := RenameFile(LockPath, RefFilePath);
+    except
+      Result := False;
     end;
-
-    { Atomically rename .lock to target }
-    if FileExists(RefFilePath) then
-      DeleteFile(RefFilePath);
-
-    Result := RenameFile(LockPath, RefFilePath);
-  except
-    if FileExists(LockPath) then
+  finally
+    fpClose(LockHandle);
+    if not Result then
       DeleteFile(LockPath);
-    Result := False;
   end;
 end;
 
