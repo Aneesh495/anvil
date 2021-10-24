@@ -52,7 +52,11 @@ begin
         PrintError('error: tag ''' + TagName + ''' not found.');
         Exit;
       end;
-      Ctx.RefMgr.DeleteReference(FullRef);
+      if not Ctx.RefMgr.DeleteReference(FullRef) then
+      begin
+        PrintError('error: failed to delete tag ''' + TagName + '''.');
+        Exit;
+      end;
       Writeln('Deleted tag ''' + TagName + ''' (was ', Copy(ObjectIdToHex(TargetId), 1, 7), ')');
       Result := 0;
       Exit;

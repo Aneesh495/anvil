@@ -73,7 +73,11 @@ begin
         PrintError('error: branch ''' + BranchName + ''' not found.');
         Exit;
       end;
-      Ctx.RefMgr.DeleteReference(FullRef);
+      if not Ctx.RefMgr.DeleteReference(FullRef) then
+      begin
+        PrintError('error: failed to delete branch ''' + BranchName + '''.');
+        Exit;
+      end;
       Writeln('Deleted branch ', BranchName, ' (was ', Copy(ObjectIdToHex(TargetId), 1, 7), ').');
       Result := 0;
       Exit;
