@@ -608,7 +608,8 @@ begin
   end;
 
   PackedPath := JoinPaths(FGitDir, 'packed-refs');
-  WriteRefAtomic(PackedPath, Content);
+  if not WriteRefAtomic(PackedPath, Content) then
+    raise EReferenceLocked.CreateWithCode(ERR_REFERENCE_LOCKED, 'Failed to lock packed-refs for write');
   LoadPackedRefs;
 end;
 
