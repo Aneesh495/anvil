@@ -17,7 +17,7 @@ interface
 uses
   SysUtils, Classes,
   anvil_types, anvil_errors, anvil_cli_router, anvil_utils,
-  anvil_index, anvil_index_entry;
+  anvil_index, anvil_index_entry, anvil_ref;
 
 procedure RunCliWorkflowTests(var PassedTests, TotalTests: Integer);
 
@@ -63,6 +63,7 @@ var
   OriginalDir, TestDir, BoundaryDir, SavedIndex: string;
   Code: Integer;
   Index: TIndex;
+  RefMgr: TRefManager;
   Entry: TIndexEntry;
 begin
   Writeln('=== Running End-to-End CLI Integration Workflow ===');
@@ -159,6 +160,26 @@ begin
     { 14. anvil gc }
     Code := RunCli('gc', []);
     AssertEquals(0, Code, 'anvil gc repacks loose objects', PassedTests, TotalTests);
+
+    { A failed packed-ref transaction must not be reported as a deletion. }
+    RefMgr := TRefManager.Create(JoinPaths(TestDir, '.anvil'));
+    try
+      RefMgr.PackReferences;
+    finally
+      RefMgr.Free;
+    end;
+    WriteEntireFileString(JoinPaths(TestDir, '.anvil/packed-refs.lock'), 'other writer');
+    try
+      Code := RunCli('branch', ['-D', 'feature']);
+      AssertTrue(Code <> 0, 'Branch deletion reports a blocked packed-ref transaction', PassedTests, TotalTests);
+      AssertTrue(FileExists(JoinPaths(TestDir, '.anvil/refs/heads/feature')), 'Failed branch deletion preserves the branch', PassedTests, TotalTests);
+      Code := RunCli('tag', ['-d', 'v1.0.0']);
+      AssertTrue(Code <> 0, 'Tag deletion reports a blocked packed-ref transaction', PassedTests, TotalTests);
+      AssertTrue(FileExists(JoinPaths(TestDir, '.anvil/refs/tags/v1.0.0')), 'Failed tag deletion preserves the tag', PassedTests, TotalTests);
+      AssertTrue(ReadEntireFileString(JoinPaths(TestDir, '.anvil/packed-refs.lock')) = 'other writer', 'Failed deletions preserve another writer lock', PassedTests, TotalTests);
+    finally
+      DeleteFile(JoinPaths(TestDir, '.anvil/packed-refs.lock'));
+    end;
 
     { 15. anvil fsck }
     Code := RunCli('fsck', []);
