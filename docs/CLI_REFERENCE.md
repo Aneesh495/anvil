@@ -53,12 +53,13 @@ Switches branches or restores working tree files:
 - `-b <new>`: Atomically creates and checks out the new branch.
 - Protects uncommitted dirty changes from accidental loss.
 
-### `anvil diff [revision] [--cached] [--patience]`
+### `anvil diff [revision] [--cached]`
 Compares changes between trees, the index, and working copy:
 - No arguments: Diffs working tree against index.
 - `--cached, --staged`: Diffs index against `HEAD` commit tree.
 - `<rev1> <rev2>`: Diffs arbitrary commits or tree objects.
-- `--patience`: Activates patience diff algorithm.
+
+The CLI currently generates patches with Myers diff. The engine's patience implementation is not exposed by a `--patience` CLI option.
 
 ### `anvil merge <branch>`
 Reconciles divergent branches:
