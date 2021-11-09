@@ -133,7 +133,7 @@ Populates the staging index with the contents of the given tree object.
 Creates a raw commit object pointing directly to `<tree-id>` without modifying `HEAD` or the index.
 
 ### `anvil rev-parse <revision>`
-Resolves revision syntax (`HEAD`, `main~2`, `v1.0.0^{commit}`) into a raw 40-character hexadecimal object ID.
+Resolves references, object IDs, ancestor expressions such as `main~2` and `HEAD^`, and reflog expressions such as `main@{0}` into a raw hexadecimal object ID. Git's typed peeling syntax, such as `v1.0.0^{commit}`, is not currently supported by the revision parser.
 
 ### `anvil rev-list [--topo-order] [--max-count=N] <commit>...`
 Lists commit IDs in specified traversal order.
