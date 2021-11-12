@@ -100,9 +100,11 @@ Housekeeping command that packs loose objects into packed containers (`.pack` an
 
 ### `anvil fsck`
 Integrity verification engine:
-- Traverses all reachable objects from all refs and reflogs.
-- Verifies SHA-1 / SHA-256 digests against payload contents.
-- Validates packfile trailers and 256-way fanout index tables.
+- Enumerates stored objects and reports objects the database cannot read.
+- Checks that tree entries, commit trees, and commit parents refer to existing objects.
+- Checks resolved references for missing target objects.
+
+This command does not currently walk reflogs or independently recompute every object's digest, pack trailer, and index fanout table. A successful result covers the checks above rather than a complete Git-compatible `fsck` audit.
 
 ---
 
