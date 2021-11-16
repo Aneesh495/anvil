@@ -80,6 +80,19 @@ class TestPyAnvil(unittest.TestCase):
             repo.add("relative.txt")
             self.assertEqual(repo.status().staged_count, 1)
 
+    def test_empty_branch_revision_does_not_default_to_head(self):
+        with Repository.init(self.test_dir) as repo:
+            Path(self.test_dir, "tracked.txt").write_text("content", encoding="utf-8")
+            repo.add("tracked.txt")
+            head = repo.commit("initial")
+            with self.assertRaises(AnvilError):
+                repo.branch("empty-start", "")
+            self.assertFalse(Path(self.test_dir, ".anvil/refs/heads/empty-start").exists())
+            repo.branch("default-start")
+            self.assertEqual(repo.rev_parse("default-start"), head)
+            repo.branch("explicit-start", "HEAD")
+            self.assertEqual(repo.rev_parse("explicit-start"), head)
+
     def test_invalid_branch_names_raise_without_terminating_python(self):
         with Repository.init(self.test_dir) as repo:
             Path(self.test_dir, "tracked.txt").write_text("content", encoding="utf-8")
