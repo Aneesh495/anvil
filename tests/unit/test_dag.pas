@@ -211,6 +211,13 @@ begin
       AssertTrue(RevParser.Resolve('HEAD~2', ResolvedId), 'Resolve HEAD~2 succeeds', PassedTests, TotalTests);
       AssertTrue(ObjectIdEqual(Id1, ResolvedId), 'HEAD~2 is C1', PassedTests, TotalTests);
 
+      AssertTrue(RevParser.Resolve('HEAD~0', ResolvedId), 'Resolve explicit zero-generation ancestor', PassedTests, TotalTests);
+      AssertTrue(ObjectIdEqual(Id3, ResolvedId), 'HEAD~0 remains HEAD', PassedTests, TotalTests);
+      AssertTrue(RevParser.Resolve('HEAD^0', ResolvedId), 'Resolve explicit zero-parent commit', PassedTests, TotalTests);
+      AssertTrue(ObjectIdEqual(Id3, ResolvedId), 'HEAD^0 remains HEAD', PassedTests, TotalTests);
+      AssertTrue(RevParser.Resolve(ObjectIdToHex(Id1) + '^0', ResolvedId), 'A root commit accepts the zero-parent operator', PassedTests, TotalTests);
+      AssertTrue(ObjectIdEqual(Id1, ResolvedId), 'Root commit ^0 remains the root', PassedTests, TotalTests);
+
       { Compound: HEAD~1^ }
       AssertTrue(RevParser.Resolve('HEAD~1^', ResolvedId), 'Resolve compound HEAD~1^ succeeds', PassedTests, TotalTests);
       AssertTrue(ObjectIdEqual(Id1, ResolvedId), 'HEAD~1^ is C1', PassedTests, TotalTests);
