@@ -229,6 +229,7 @@ begin
     end
     else
     begin
+      Ref := nil;
       SpacePos := Pos(' ', Line);
       if SpacePos > 0 then
       begin
