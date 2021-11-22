@@ -234,6 +234,32 @@ begin
       ParserRefMgr.Free;
     end;
 
+    { Repacking must preserve known peels without promising unknown ones. }
+    WriteEntireFileString(JoinPaths(TestDir, 'parse-check/packed-refs'),
+      '# pack-refs with: peeled fully-peeled sorted'#10 +
+      ObjectIdToHex(Id1) + ' refs/tags/valid'#10 + '^' + ObjectIdToHex(Id3) + #10);
+    ParserRefMgr := TRefManager.Create(JoinPaths(TestDir, 'parse-check'));
+    try
+      ParserRefMgr.PackReferences;
+      Ref := ParserRefMgr.GetReference('refs/tags/valid');
+      try
+        AssertTrue(Assigned(Ref) and Ref.HasPeeled and ObjectIdEqual(Ref.PeeledId, Id3), 'Repacking retains an unchanged tag peeled value', PassedTests, TotalTests);
+      finally
+        Ref.Free;
+      end;
+      AssertTrue(Pos('fully-peeled', ReadEntireFileString(JoinPaths(TestDir, 'parse-check/packed-refs'))) = 0, 'Repacking does not claim all targets were peeled', PassedTests, TotalTests);
+      ParserRefMgr.SetReference('refs/tags/valid', Id2);
+      ParserRefMgr.PackReferences;
+      Ref := ParserRefMgr.GetReference('refs/tags/valid');
+      try
+        AssertTrue(Assigned(Ref) and not Ref.HasPeeled, 'A moved tag does not reuse the old target peeled value', PassedTests, TotalTests);
+      finally
+        Ref.Free;
+      end;
+    finally
+      ParserRefMgr.Free;
+    end;
+
     { --- 2. Reflog Manager Tests --- }
     Committer.Name := 'Test Author';
     Committer.Email := 'author@test.local';
