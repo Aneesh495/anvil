@@ -188,7 +188,7 @@ begin
         MergeCommit.AddParent(OursId);
         MergeCommit.AddParent(TheirsId);
 
-        Identity := MakeIdentity('Aneesh Krishna', 'aneesh@engine.internal', DateTimeToUnix(Now), 0);
+        Identity := MakeIdentity('Aneesh Krishna', 'aneesh@engine.internal', DateTimeToUnix(Now, False), 0);
         MergeCommit.Author := Identity;
         MergeCommit.Committer := Identity;
         MergeCommit.Message := 'Merge branch ''' + BranchToMerge + ''''#10;
