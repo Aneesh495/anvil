@@ -396,7 +396,7 @@ begin
   Result.Name := AName;
   Result.Email := AEmail;
   if WhenSecs = 0 then
-    Result.When.Seconds := DateTimeToUnix(Now)
+    Result.When.Seconds := DateTimeToUnix(Now, False)
   else
     Result.When.Seconds := WhenSecs;
   Result.When.OffsetMinutes := OffsetMins;

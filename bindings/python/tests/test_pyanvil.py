@@ -80,6 +80,30 @@ class TestPyAnvil(unittest.TestCase):
             repo.add("relative.txt")
             self.assertEqual(repo.status().staged_count, 1)
 
+    def test_commit_epoch_is_correct_outside_utc(self):
+        code = """
+from pathlib import Path
+import sys
+import time
+import zlib
+from pyanvil import Repository
+root = Path(sys.argv[1])
+before = int(time.time())
+with Repository.init(str(root)) as repo:
+    (root / 'tracked.txt').write_text('content', encoding='utf-8')
+    repo.add('tracked.txt')
+    oid = repo.commit('timestamp check')
+    data = zlib.decompress((root / '.anvil/objects' / oid[:2] / oid[2:]).read_bytes())
+    author = next(line for line in data.split(b'\\n') if line.startswith(b'author '))
+    epoch = int(author.rsplit(b' ', 2)[1])
+after = int(time.time())
+assert before <= epoch <= after, (before, epoch, after)
+"""
+        env = dict(os.environ, TZ="UTC+09")
+        result = subprocess.run([sys.executable, "-c", code, self.test_dir],
+                                env=env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_empty_branch_revision_does_not_default_to_head(self):
         with Repository.init(self.test_dir) as repo:
             Path(self.test_dir, "tracked.txt").write_text("content", encoding="utf-8")
