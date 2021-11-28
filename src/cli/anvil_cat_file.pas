@@ -44,7 +44,14 @@ begin
     ShowSize := HasFlag(Args, '-s', '');
     PrettyPrint := HasFlag(Args, '-p', '');
 
-    PosArgs := GetPositionalArgs(Args);
+    { These mode flags do not consume an option value. }
+    PosArgs := nil;
+    for I := 0 to High(Args) do
+      if (Args[I] <> '-t') and (Args[I] <> '-s') and (Args[I] <> '-p') then
+      begin
+        SetLength(PosArgs, Length(PosArgs) + 1);
+        PosArgs[High(PosArgs)] := Args[I];
+      end;
     if Length(PosArgs) = 0 then
     begin
       PrintUsage('cat-file', '(-t | -s | -p) <object>', 'Provide content or type/size information for repository objects');
