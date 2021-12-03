@@ -97,6 +97,8 @@ begin
       'end.'#10);
 
     { 3. anvil status }
+    AssertEquals(0, RunCli('hash-object', ['-t', 'blob', 'app.pas']), 'hash-object accepts an explicit blob type', PassedTests, TotalTests);
+    AssertEquals(1, RunCli('hash-object', ['-w', '-t', 'tree', 'app.pas']), 'hash-object rejects unsupported types instead of writing a blob', PassedTests, TotalTests);
     Code := RunCli('status', []);
     AssertEquals(0, Code, 'anvil status on untracked files', PassedTests, TotalTests);
 
