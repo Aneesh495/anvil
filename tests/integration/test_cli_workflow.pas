@@ -151,6 +151,10 @@ begin
     AssertEquals(0, Code, 'anvil log --oneline succeeds', PassedTests, TotalTests);
     AssertEquals(0, RunCli('log', ['--oneline', '--max-count', '1']), 'Long max-count value is not treated as the log revision', PassedTests, TotalTests);
 
+    AssertEquals(0, RunCli('rev-list', ['--max-count', '1']), 'rev-list accepts the separated count option with default HEAD', PassedTests, TotalTests);
+    AssertEquals(1, RunCli('rev-list', ['missing-revision']), 'rev-list rejects an unresolved explicit revision', PassedTests, TotalTests);
+    AssertEquals(1, RunCli('rev-list', ['missing-revision..HEAD']), 'rev-list rejects an unresolved explicit range', PassedTests, TotalTests);
+
     AssertEquals(0, RunCli('cat-file', ['-t', 'HEAD']), 'cat-file type mode retains its object argument', PassedTests, TotalTests);
     AssertEquals(0, RunCli('cat-file', ['-p', 'HEAD']), 'cat-file pretty mode retains its object argument', PassedTests, TotalTests);
 
