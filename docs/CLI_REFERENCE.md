@@ -137,5 +137,5 @@ Creates a raw commit object pointing directly to `<tree-id>` without modifying `
 ### `anvil rev-parse <revision>`
 Resolves references, object IDs, ancestor expressions such as `main~2` and `HEAD^`, and reflog expressions such as `main@{0}` into a raw hexadecimal object ID. Git's typed peeling syntax, such as `v1.0.0^{commit}`, is not currently supported by the revision parser.
 
-### `anvil rev-list [--topo-order] [--max-count=N] <commit>...`
-Lists commit IDs in specified traversal order.
+### `anvil rev-list [--topo-order] [--max-count=N] [<revision>...]`
+Lists commit IDs in topological order from the supplied revisions or ranges. When no revision is supplied, the walk starts at `HEAD`. An unresolved revision or range exits with an error.
