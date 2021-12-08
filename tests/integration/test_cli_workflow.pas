@@ -17,7 +17,7 @@ interface
 uses
   SysUtils, Classes,
   anvil_types, anvil_errors, anvil_cli_router, anvil_utils,
-  anvil_index, anvil_index_entry, anvil_ref;
+  anvil_hash, anvil_index, anvil_index_entry, anvil_odb, anvil_ref;
 
 procedure RunCliWorkflowTests(var PassedTests, TotalTests: Integer);
 
@@ -58,11 +58,34 @@ begin
   Result := DispatchCliCommand(Cmd, ArgsArr);
 end;
 
+procedure AssertCatFileOutput(const Args: array of string; const CapturePath,
+  Expected, Msg: string; var PassedTests, TotalTests: Integer);
+var
+  Code: Integer;
+begin
+  Flush(Output);
+  Assign(Output, CapturePath);
+  Rewrite(Output);
+  try
+    Code := RunCli('cat-file', Args);
+  finally
+    Close(Output);
+    Assign(Output, '');
+    Rewrite(Output);
+  end;
+  AssertTrue((Code = 0) and (ReadEntireFileString(CapturePath) = Expected),
+    Msg, PassedTests, TotalTests);
+end;
+
 procedure RunCliWorkflowTests(var PassedTests, TotalTests: Integer);
+const
+  BinaryBlob = 'a'#0'b'#$FF#13#10;
 var
   OriginalDir, TestDir, BoundaryDir, SavedIndex: string;
+  BinaryBlobId, EmptyBlobId, CapturePath: string;
   Code: Integer;
   Index: TIndex;
+  Odb: TObjectDatabase;
   RefMgr: TRefManager;
   Entry: TIndexEntry;
 begin
@@ -157,6 +180,21 @@ begin
 
     AssertEquals(0, RunCli('cat-file', ['-t', 'HEAD']), 'cat-file type mode retains its object argument', PassedTests, TotalTests);
     AssertEquals(0, RunCli('cat-file', ['-p', 'HEAD']), 'cat-file pretty mode retains its object argument', PassedTests, TotalTests);
+    Odb := TObjectDatabase.Create(JoinPaths(TestDir, '.anvil/objects'));
+    try
+      BinaryBlobId := ObjectIdToHex(Odb.WriteObjectRaw(otBlob, PChar(BinaryBlob), Length(BinaryBlob)));
+      EmptyBlobId := ObjectIdToHex(Odb.WriteObjectRaw(otBlob, nil, 0));
+    finally
+      Odb.Free;
+    end;
+    CapturePath := JoinPaths(TestDir, '.anvil/cat-file-test-output');
+    AssertCatFileOutput([BinaryBlobId], CapturePath, BinaryBlob,
+      'cat-file raw mode preserves binary blob bytes', PassedTests, TotalTests);
+    AssertCatFileOutput(['-p', BinaryBlobId], CapturePath, BinaryBlob,
+      'cat-file pretty mode preserves binary blob bytes', PassedTests, TotalTests);
+    AssertCatFileOutput(['-p', EmptyBlobId], CapturePath, '',
+      'cat-file pretty mode emits zero bytes for an empty blob', PassedTests, TotalTests);
+    DeleteFile(CapturePath);
 
     { 12. anvil tag v1.0.0 }
     Code := RunCli('tag', ['v1.0.0']);
