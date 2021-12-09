@@ -23,6 +23,32 @@ function RunCmdCatFile(const Args: TStringArray): Integer;
 
 implementation
 
+uses Math;
+
+{ Write the payload exactly as stored, including embedded zero bytes. }
+function WriteRawOutput(const Data: TByteArray): Integer;
+const
+  ChunkSize = 16 * 1024 * 1024;
+var
+  Offset: SizeInt;
+  Written: LongInt;
+begin
+  Flush(Output);
+  Offset := 0;
+  while Offset < Length(Data) do
+  begin
+    Written := FileWrite(TextRec(Output).Handle, Data[Offset],
+      Min(Length(Data) - Offset, SizeInt(ChunkSize)));
+    if Written <= 0 then
+    begin
+      PrintError('fatal: cat-file: could not write object to standard output');
+      Exit(1);
+    end;
+    Inc(Offset, Written);
+  end;
+  Result := 0;
+end;
+
 function RunCmdCatFile(const Args: TStringArray): Integer;
 var
   Ctx: TRepoContext;
@@ -88,11 +114,8 @@ begin
     if PrettyPrint then
     begin
       case ObjType of
-        otBlob:
-        begin
-          if Length(RawData) > 0 then
-            Write(PChar(@RawData[0]));
-        end;
+        otBlob, otTag:
+          Exit(WriteRawOutput(RawData));
 
         otTree:
         begin
@@ -129,21 +152,13 @@ begin
           end;
         end;
 
-        otTag:
-        begin
-          if Length(RawData) > 0 then
-            Write(PChar(@RawData[0]));
-        end;
       end;
 
       Result := 0;
       Exit;
     end;
 
-    { Default: raw stream to stdout }
-    if Length(RawData) > 0 then
-      Write(PChar(@RawData[0]));
-    Result := 0;
+    Result := WriteRawOutput(RawData);
 
   finally
     CloseRepoContext(Ctx);
