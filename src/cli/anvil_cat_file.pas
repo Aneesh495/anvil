@@ -121,14 +121,12 @@ begin
         begin
           TreeObj := TTreeObject.Create;
           try
-            TreeObj.Deserialize(@RawData[0], Length(RawData), Ctx.Algo);
+            if Length(RawData) > 0 then
+              TreeObj.Deserialize(@RawData[0], Length(RawData), Ctx.Algo);
             for I := 0 to TreeObj.Count - 1 do
             begin
               Entry := TreeObj.GetEntry(I);
-              if Entry.Mode = fmDirectory then
-                Writeln(Format('%06o tree %s'#9'%s', [FileModeToOctal(Entry.Mode), ObjectIdToHex(Entry.Id), Entry.Name]))
-              else
-                Writeln(Format('%06o blob %s'#9'%s', [FileModeToOctal(Entry.Mode), ObjectIdToHex(Entry.Id), Entry.Name]));
+              PrintTreeEntry(Entry, Entry.Name);
             end;
           finally
             TreeObj.Free;
