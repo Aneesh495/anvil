@@ -15,7 +15,7 @@ interface
 
 uses
   SysUtils, Classes,
-  anvil_types, anvil_errors, anvil_hash, anvil_odb, anvil_ref, anvil_reflog, anvil_revision, anvil_index, anvil_utils;
+  anvil_types, anvil_errors, anvil_hash, anvil_object, anvil_odb, anvil_ref, anvil_reflog, anvil_revision, anvil_index, anvil_utils;
 
 type
   { Open repository session context }
@@ -45,6 +45,7 @@ function GetPositionalArgs(const Args: TStringArray): TStringArray;
 { Standard CLI printing }
 procedure PrintError(const Msg: string);
 procedure PrintUsage(const CmdName, UsageStr, DescriptionStr: string);
+procedure PrintTreeEntry(const Entry: TTreeEntry; const Path: string);
 
 implementation
 
@@ -221,6 +222,20 @@ begin
     Writeln;
     Writeln('  ', DescriptionStr);
   end;
+end;
+
+procedure PrintTreeEntry(const Entry: TTreeEntry; const Path: string);
+var
+  ObjType: TObjectType;
+begin
+  case Entry.Mode of
+    fmDirectory: ObjType := otTree;
+    fmGitLink: ObjType := otCommit;
+  else
+    ObjType := otBlob;
+  end;
+  Writeln(FileModeToString(Entry.Mode), ' ', ObjectTypeToString(ObjType), ' ',
+    ObjectIdToHex(Entry.Id), #9, Path);
 end;
 
 end.
