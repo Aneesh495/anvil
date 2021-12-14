@@ -82,8 +82,8 @@ const
   BinaryBlob = 'a'#0'b'#$FF#13#10;
 var
   OriginalDir, TestDir, BoundaryDir, SavedIndex: string;
-  BinaryBlobId, EmptyBlobId, ListingTreeId, TreeListing, CapturePath: string;
-  BinaryBlobObjectId, EmptyTreeId, HeadId: TObjectId;
+  BinaryBlobId, EmptyBlobId, ListingTreeId, IncompleteTreeId, TreeListing, CapturePath: string;
+  BinaryBlobObjectId, EmptyTreeId, MissingTreeId, HeadId: TObjectId;
   Code: Integer;
   Index: TIndex;
   Odb: TObjectDatabase;
@@ -262,6 +262,27 @@ begin
     { 15. anvil fsck }
     Code := RunCli('fsck', []);
     AssertEquals(0, Code, 'anvil fsck verifies repository integrity', PassedTests, TotalTests);
+
+    { Introduce an incomplete tree after the healthy repository check. }
+    Odb := TObjectDatabase.Create(JoinPaths(TestDir, '.anvil/objects'));
+    try
+      Tree := TTreeObject.Create;
+      try
+        MissingTreeId := HexToObjectId(StringOfChar('1', 40));
+        Tree.AddEntry(fmDirectory, 'missing', MissingTreeId);
+        IncompleteTreeId := ObjectIdToHex(Odb.WriteObject(Tree));
+      finally
+        Tree.Free;
+      end;
+    finally
+      Odb.Free;
+    end;
+    AssertCliOutput('ls-tree', [IncompleteTreeId], CapturePath,
+      '040000 tree ' + ObjectIdToHex(MissingTreeId) + #9'missing' + LineEnding,
+      'ls-tree lists a subtree reference without following it by default', PassedTests, TotalTests);
+    AssertEquals(1, RunCli('ls-tree', ['-r', IncompleteTreeId]),
+      'ls-tree reports a missing subtree during recursion', PassedTests, TotalTests);
+    DeleteFile(CapturePath);
 
     { 16. A dot pathspec is scoped to the current directory, not the repository root. }
     EnsureDirectoryExists(JoinPaths(TestDir, 'nested'));
