@@ -216,6 +216,10 @@ begin
       'cat-file pretty mode emits zero bytes for an empty blob', PassedTests, TotalTests);
 
     AssertEquals(1, RunCli('ls-tree', [BinaryBlobId]), 'ls-tree rejects a blob as a non-tree object', PassedTests, TotalTests);
+    SavedIndex := ReadEntireFileString(JoinPaths(TestDir, '.anvil/index'));
+    AssertEquals(1, RunCli('read-tree', [BinaryBlobId]), 'read-tree rejects a blob as a non-tree object', PassedTests, TotalTests);
+    AssertTrue(SavedIndex = ReadEntireFileString(JoinPaths(TestDir, '.anvil/index')),
+      'read-tree leaves the staged index on disk unchanged when given a blob', PassedTests, TotalTests);
     AssertEquals(0, RunCli('ls-tree', ['HEAD']), 'ls-tree accepts a commit', PassedTests, TotalTests);
     TreeListing := '040000 tree ' + ObjectIdToHex(EmptyTreeId) + #9'empty' + LineEnding +
       '100644 blob ' + BinaryBlobId + #9'payload.bin' + LineEnding +
