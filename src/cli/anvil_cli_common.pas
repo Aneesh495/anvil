@@ -40,6 +40,7 @@ function ResolveRevisionRange(const Ctx: TRepoContext; const RangeExpr: string;
 { Command line option parsers }
 function HasFlag(const Args: TStringArray; const ShortFlag, LongFlag: string): Boolean;
 function GetOptionValue(const Args: TStringArray; const ShortFlag, LongFlag: string; out Val: string): Boolean;
+function ParseCommitLimit(const Args: TStringArray; out Limit: Integer): Boolean;
 function GetPositionalArgs(const Args: TStringArray): TStringArray;
 
 { Standard CLI printing }
@@ -171,6 +172,29 @@ begin
     end;
     Inc(I);
   end;
+end;
+
+function ParseCommitLimit(const Args: TStringArray; out Limit: Integer): Boolean;
+var
+  Value: string;
+begin
+  Limit := MaxInt;
+  if GetOptionValue(Args, '-n', '--max-count', Value) then
+  begin
+    if not TryStrToInt(Value, Limit) then
+    begin
+      PrintError('fatal: invalid commit limit: ' + Value);
+      Exit(False);
+    end;
+    if Limit < 0 then
+      Limit := MaxInt;
+  end
+  else if HasFlag(Args, '-n', '--max-count') then
+  begin
+    PrintError('fatal: missing commit limit');
+    Exit(False);
+  end;
+  Result := True;
 end;
 
 function GetPositionalArgs(const Args: TStringArray): TStringArray;
