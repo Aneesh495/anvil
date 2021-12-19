@@ -253,11 +253,13 @@ begin
   Walker := TCommitWalker.Create(FODB, csoChronological);
   try
     Walker.Push(StartCommitId);
-    SetLength(CommitIds, MaxCommits);
+    CommitIds := nil;
     Count := 0;
 
     while (Count < MaxCommits) and Walker.Next(Id) do
     begin
+      if Count = Length(CommitIds) then
+        SetLength(CommitIds, SizeInt(Count) + Count div 2 + 16);
       CommitIds[Count] := Id;
       Inc(Count);
     end;
