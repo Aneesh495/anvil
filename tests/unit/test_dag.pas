@@ -174,7 +174,7 @@ begin
     C3.TreeId := TreeId3;
     C3.AddParent(Id2);
     C3.Author := AuthorCharlie;
-    C3.Message := 'Charlie edits code.pas';
+    C3.Message := 'Charlie edits code.pas'#13#10#13#10'Describe the changes in detail.';
     Id3 := C3.ObjectId;
     ODB.WriteObject(C3);
     C3.Free;
@@ -311,7 +311,10 @@ begin
       AssertTrue(Pos('main', GraphLines[0].Decorations) > 0, 'First row has main branch decoration', PassedTests, TotalTests);
 
       GraphOutput := Renderer.FormatGraphString(GraphLines);
-      AssertTrue(Pos('Charlie edits code.pas', GraphOutput) > 0, 'Formatted graph string includes commit message', PassedTests, TotalTests);
+      AssertTrue(Pos('Charlie edits code.pas (Charlie, ', GraphOutput) > 0,
+        'Graph keeps the subject and author on the same line', PassedTests, TotalTests);
+      AssertTrue(Pos('Describe the changes in detail.', GraphOutput) = 0,
+        'Graph omits the commit message body', PassedTests, TotalTests);
     finally
       Renderer.Free;
     end;
