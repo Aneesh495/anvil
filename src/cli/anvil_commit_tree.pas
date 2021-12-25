@@ -28,6 +28,8 @@ var
   Ctx: TRepoContext;
   TreeRev, MsgStr: string;
   TreeId, ParentId, CommitId: TObjectId;
+  ObjType: TObjectType;
+  RawData: TByteArray;
   CommitObj: TCommitObject;
   I: Integer;
   ParentStr: string;
@@ -51,9 +53,10 @@ begin
       Exit;
     end;
 
-    if not ResolveRevision(Ctx, TreeRev, TreeId) then
+    if not ResolveRevision(Ctx, TreeRev, TreeId) or
+       not Ctx.ODB.ReadObjectRaw(TreeId, ObjType, RawData) or (ObjType <> otTree) then
     begin
-      PrintError('fatal: not a valid object name: ' + TreeRev);
+      PrintError('fatal: not a valid tree object: ' + TreeRev);
       Exit;
     end;
 
@@ -68,11 +71,12 @@ begin
         if (Args[I] = '-p') and (I + 1 < Length(Args)) then
         begin
           ParentStr := Args[I + 1];
-          if ResolveRevision(Ctx, ParentStr, ParentId) then
+          if ResolveRevision(Ctx, ParentStr, ParentId) and
+             Ctx.ODB.ReadObjectRaw(ParentId, ObjType, RawData) and (ObjType = otCommit) then
             CommitObj.AddParent(ParentId)
           else
           begin
-            PrintError('fatal: bad parent: ' + ParentStr);
+            PrintError('fatal: not a valid parent commit: ' + ParentStr);
             Exit;
           end;
           Inc(I, 2);
