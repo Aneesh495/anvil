@@ -143,19 +143,43 @@ var
   S: string;
   I, J: Integer;
   OldHex, NewHex: string;
+  OldPath, NewPath, OldLabel, NewLabel: string;
   PrefixChar: Char;
 begin
   Hunks := GroupIntoHunks(Lines);
-  if Length(Hunks) = 0 then
+  if (Length(Hunks) = 0) and not (Delta.Status in [dsAdded, dsDeleted]) then
     Exit('');
 
   OldHex := Copy(ObjectIdToHex(Delta.OldId), 1, 7);
   NewHex := Copy(ObjectIdToHex(Delta.NewId), 1, 7);
 
-  S := Format('diff --git a/%s b/%s'#10, [Delta.OldPath, Delta.NewPath]);
-  S := S + Format('index %s..%s %s'#10, [OldHex, NewHex, FileModeToString(Delta.NewMode)]);
-  S := S + Format('--- a/%s'#10, [Delta.OldPath]);
-  S := S + Format('+++ b/%s'#10, [Delta.NewPath]);
+  OldPath := Delta.OldPath;
+  NewPath := Delta.NewPath;
+  if Delta.Status = dsAdded then OldPath := NewPath;
+  if Delta.Status = dsDeleted then NewPath := OldPath;
+  S := Format('diff --git a/%s b/%s'#10, [OldPath, NewPath]);
+  OldLabel := 'a/' + OldPath;
+  NewLabel := 'b/' + NewPath;
+
+  case Delta.Status of
+    dsAdded:
+    begin
+      OldLabel := '/dev/null';
+      S := S + 'new file mode ' + FileModeToString(Delta.NewMode) + #10;
+      S := S + Format('index %s..%s'#10, [OldHex, NewHex]);
+    end;
+    dsDeleted:
+    begin
+      NewLabel := '/dev/null';
+      S := S + 'deleted file mode ' + FileModeToString(Delta.OldMode) + #10;
+      S := S + Format('index %s..%s'#10, [OldHex, NewHex]);
+    end;
+  else
+    S := S + Format('index %s..%s %s'#10, [OldHex, NewHex, FileModeToString(Delta.NewMode)]);
+  end;
+
+  if Length(Hunks) > 0 then
+    S := S + Format('--- %s'#10'+++ %s'#10, [OldLabel, NewLabel]);
 
   for I := 0 to High(Hunks) do
   begin
