@@ -35,7 +35,9 @@ type
     function GroupIntoHunks(const Lines: TDiffLineArray): TDiffHunkArray;
   public
     constructor Create(ContextLines: Integer = 3);
-    function FormatFileDiff(const Delta: TTreeDelta; const Lines: TDiffLineArray): string;
+    function FormatFileDiff(const Delta: TTreeDelta; const Lines: TDiffLineArray;
+      PreserveLineEndings: Boolean = False): string;
+    function FormatTextDiff(const Delta: TTreeDelta; const OldText, NewText: string): string;
     function FormatDiffStat(const Deltas: TTreeDeltaArray; const AllLines: array of TDiffLineArray): string;
     property ContextLines: Integer read FContextLines write FContextLines;
   end;
@@ -137,13 +139,40 @@ begin
     Result[I] := Hunks[I];
 end;
 
-function TPatchGenerator.FormatFileDiff(const Delta: TTreeDelta; const Lines: TDiffLineArray): string;
+{ Retain each physical line terminator as part of its text for comparison.
+  A terminal separator closes the last line and does not open another one. }
+function SplitPatchLines(const Text: string): TStringArray;
+var
+  I: Integer;
+begin
+  Result := SplitStringByChar(Text, #10);
+  for I := 0 to High(Result) - 1 do
+    Result[I] := Result[I] + #10;
+  if (Length(Text) > 0) and (Text[Length(Text)] = #10) then
+    SetLength(Result, Length(Result) - 1);
+end;
+
+function TPatchGenerator.FormatTextDiff(const Delta: TTreeDelta; const OldText, NewText: string): string;
+var
+  Diff: TMyersDiff;
+begin
+  Diff := TMyersDiff.Create(SplitPatchLines(OldText), SplitPatchLines(NewText));
+  try
+    Result := FormatFileDiff(Delta, Diff.ComputeDiff, True);
+  finally
+    Diff.Free;
+  end;
+end;
+
+function TPatchGenerator.FormatFileDiff(const Delta: TTreeDelta; const Lines: TDiffLineArray;
+  PreserveLineEndings: Boolean): string;
 var
   Hunks: TDiffHunkArray;
   S: string;
   I, J: Integer;
   OldHex, NewHex: string;
   OldPath, NewPath, OldLabel, NewLabel: string;
+  LineText: string;
   PrefixChar: Char;
 begin
   Hunks := GroupIntoHunks(Lines);
@@ -197,7 +226,12 @@ begin
       else
         PrefixChar := ' ';
       end;
-      S := S + PrefixChar + Hunks[I].Lines[J].Text + #10;
+      LineText := Hunks[I].Lines[J].Text;
+      S := S + PrefixChar + LineText;
+      if not PreserveLineEndings then
+        S := S + #10
+      else if (Length(LineText) = 0) or (LineText[Length(LineText)] <> #10) then
+        S := S + #10'\ No newline at end of file'#10;
     end;
   end;
 
