@@ -82,7 +82,7 @@ const
   BinaryBlob = 'a'#0'b'#$FF#13#10;
 var
   OriginalDir, TestDir, BoundaryDir, SavedIndex: string;
-  BinaryBlobId, EmptyBlobId, ListingTreeId, IncompleteTreeId, TreeListing, CapturePath, DiffPath: string;
+  BinaryBlobId, EmptyBlobId, ListingTreeId, IncompleteTreeId, TreeListing, CapturePath, DiffPath, DiffIndex: string;
   BinaryBlobObjectId, EmptyTreeId, MissingTreeId, HeadId: TObjectId;
   Code: Integer;
   Index: TIndex;
@@ -242,6 +242,18 @@ begin
         'index 0000000..7e74e68'#10'--- /dev/null'#10'+++ b/diff-fixture.txt'#10'@@ -0,0 +1,1 @@'#10 +
         '+alpha'#10'\ No newline at end of file'#10,
         'Staged diff records a missing final newline', PassedTests, TotalTests);
+      AssertCliOutput('diff', [], CapturePath, '', 'Worktree diff ignores unchanged staged content',
+        PassedTests, TotalTests);
+      DiffIndex := ReadEntireFileString(JoinPaths(TestDir, '.anvil/index'));
+      if not DeleteFile(DiffPath) then
+        raise Exception.Create('Failed to remove the worktree diff fixture');
+      AssertCliOutput('diff', [], CapturePath,
+        'diff --git a/diff-fixture.txt b/diff-fixture.txt'#10'deleted file mode 100644'#10 +
+        'index 7e74e68..0000000'#10'--- a/diff-fixture.txt'#10'+++ /dev/null'#10'@@ -1,1 +0,0 @@'#10 +
+        '-alpha'#10'\ No newline at end of file'#10,
+        'Worktree diff reports a tracked path removed from disk', PassedTests, TotalTests);
+      AssertTrue(DiffIndex = ReadEntireFileString(JoinPaths(TestDir, '.anvil/index')),
+        'Worktree diff leaves the staged file untouched', PassedTests, TotalTests);
     finally
       WriteEntireFileString(JoinPaths(TestDir, '.anvil/index'), SavedIndex);
       DeleteFile(DiffPath);
