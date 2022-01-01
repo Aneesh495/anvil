@@ -27,7 +27,7 @@ implementation
 function RunCmdDiff(const Args: TStringArray): Integer;
 var
   Ctx: TRepoContext;
-  IsStaged: Boolean;
+  IsStaged, FilePresent: Boolean;
   PosArgs: TStringArray;
   TreeDiff: TTreeDiff;
   Deltas: TTreeDeltaArray;
@@ -45,7 +45,7 @@ var
   RevA, RevB: string;
   DotDotPos: Integer;
   Entry: TIndexEntry;
-  WorktreeFileText: string;
+  WorktreePath: string;
 begin
   Result := 1;
   if not OpenRepoContext(Ctx) then Exit;
@@ -128,30 +128,36 @@ begin
         for I := 0 to Ctx.Index.Count - 1 do
         begin
           Entry := Ctx.Index.GetEntry(I);
-          if FileExists(JoinPaths(Ctx.RepoRoot, Entry.Path)) then
+          WorktreePath := JoinPaths(Ctx.RepoRoot, Entry.Path);
+          FilePresent := FileExists(WorktreePath);
+          if not FilePresent and (Entry.Stage <> 0) then
+            Continue;
+          if not Ctx.ODB.ReadObjectRaw(Entry.Id, ObjType, OldBlobData) or (ObjType <> otBlob) then
+            Continue;
+          SetString(OldText, PChar(Pointer(OldBlobData)), Length(OldBlobData));
+
+          Delta := Default(TTreeDelta);
+          Delta.OldPath := Entry.Path;
+          Delta.OldId := Entry.Id;
+          Delta.OldMode := Entry.Mode;
+          Delta.NewId := NullObjectId(Ctx.Algo);
+          if FilePresent then
           begin
-            WorktreeFileText := ReadEntireFileString(JoinPaths(Ctx.RepoRoot, Entry.Path));
-            if Ctx.ODB.ReadObjectRaw(Entry.Id, ObjType, OldBlobData) then
-            begin
-              SetString(OldText, PChar(Pointer(OldBlobData)), Length(OldBlobData));
-              NewText := WorktreeFileText;
-
-              { Check if any modification exists }
-              if OldText <> NewText then
-              begin
-                FillChar(Delta, SizeOf(Delta), 0);
-                Delta.OldPath := Entry.Path;
-                Delta.NewPath := Entry.Path;
-                Delta.OldId := Entry.Id;
-                Delta.OldMode := Entry.Mode;
-                Delta.NewMode := Entry.Mode;
-                Delta.Status := dsModified;
-
-                PatchText := PatchGen.FormatTextDiff(Delta, OldText, NewText);
-                Write(PatchText);
-              end;
-            end;
+            NewText := ReadEntireFileString(WorktreePath);
+            if OldText = NewText then
+              Continue;
+            Delta.NewPath := Entry.Path;
+            Delta.NewMode := Entry.Mode;
+            Delta.Status := dsModified;
+          end
+          else
+          begin
+            NewText := '';
+            Delta.NewMode := fmNone;
+            Delta.Status := dsDeleted;
           end;
+          PatchText := PatchGen.FormatTextDiff(Delta, OldText, NewText);
+          Write(PatchText);
         end;
         Result := 0;
       finally
