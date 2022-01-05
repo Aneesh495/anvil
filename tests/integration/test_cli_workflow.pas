@@ -224,6 +224,12 @@ begin
       'rev-list emits nothing with a zero limit', PassedTests, TotalTests);
     AssertCliOutput('log', ['--graph', '--max-count=0'], CapturePath, '',
       'log graph emits nothing with a zero limit', PassedTests, TotalTests);
+    AssertEquals(1, RunCli('diff', [BinaryBlobId, BinaryBlobId]),
+      'Tree diff rejects non-tree operands', PassedTests, TotalTests);
+    AssertCliOutput('diff', ['HEAD', 'HEAD'], CapturePath, '',
+      'Tree diff compares two commit revisions', PassedTests, TotalTests);
+    AssertCliOutput('diff', [ListingTreeId, ListingTreeId], CapturePath, '',
+      'Tree diff also accepts explicit tree IDs', PassedTests, TotalTests);
     DiffPath := JoinPaths(TestDir, 'diff-fixture.txt');
     SavedIndex := ReadEntireFileString(JoinPaths(TestDir, '.anvil/index'));
     try
