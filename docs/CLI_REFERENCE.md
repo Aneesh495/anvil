@@ -40,11 +40,12 @@ Records staged changes into a new commit object:
 - `--author "Name <email>"`: Override author identity.
 - Advances current branch reference and creates a new reflog record.
 
-### `anvil branch [name] [-d <name>] [-a]`
+### `anvil branch [name] [-d <name> | -D <name>] [-a]`
 Inspects and manages branches:
 - No arguments: Lists local branch heads with active branch highlighted.
 - `name`: Creates a new branch head pointing to current `HEAD`.
-- `-d, --delete <name>`: Deletes the specified branch head.
+- Use `-d` or `--delete` to delete a branch whose tip is reachable from `HEAD`.
+- Use `-D` to delete a branch without the merge check. The checked-out branch remains protected.
 - `-a, --all`: Lists local and remote-tracking branch references.
 
 ### `anvil checkout <branch-or-commit> [-b <new-branch>]`
