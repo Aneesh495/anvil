@@ -16,16 +16,31 @@ interface
 
 uses
   SysUtils, Classes,
-  anvil_types, anvil_errors, anvil_hash, anvil_ref, anvil_cli_common;
+  anvil_types, anvil_errors, anvil_hash, anvil_ref, anvil_lca, anvil_cli_common;
 
 function RunCmdBranch(const Args: TStringArray): Integer;
 
 implementation
 
+function BranchMergedIntoHead(const Ctx: TRepoContext; const BranchId: TObjectId): Boolean;
+var
+  HeadId, BaseId: TObjectId;
+  Finder: TLcaFinder;
+begin
+  if not Ctx.RefMgr.Resolve('HEAD', HeadId) then
+    Exit(False);
+  Finder := TLcaFinder.Create(Ctx.ODB);
+  try
+    Result := Finder.FindBestMergeBase(HeadId, BranchId, BaseId) and ObjectIdEqual(BaseId, BranchId);
+  finally
+    Finder.Free;
+  end;
+end;
+
 function RunCmdBranch(const Args: TStringArray): Integer;
 var
   Ctx: TRepoContext;
-  IsDelete, ShowAll: Boolean;
+  IsDelete, IsForceDelete, ShowAll: Boolean;
   PosArgs: TStringArray;
   BranchList: TStringArray;
   I: Integer;
@@ -38,7 +53,8 @@ begin
   Result := 1;
   if not OpenRepoContext(Ctx) then Exit;
   try
-    IsDelete := HasFlag(Args, '-d', '-D') or HasFlag(Args, '', '--delete');
+    IsForceDelete := HasFlag(Args, '-D', '');
+    IsDelete := IsForceDelete or HasFlag(Args, '-d', '--delete');
     ShowAll := HasFlag(Args, '-a', '--all');
     PosArgs := GetPositionalArgs(Args);
 
@@ -71,6 +87,11 @@ begin
       if not Ctx.RefMgr.Resolve(FullRef, TargetId) then
       begin
         PrintError('error: branch ''' + BranchName + ''' not found.');
+        Exit;
+      end;
+      if not IsForceDelete and not BranchMergedIntoHead(Ctx, TargetId) then
+      begin
+        PrintError('error: branch ''' + BranchName + ''' is not fully merged into HEAD. Use -D to force deletion.');
         Exit;
       end;
       if not Ctx.RefMgr.DeleteReference(FullRef) then
