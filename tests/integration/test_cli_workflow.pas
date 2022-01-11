@@ -242,6 +242,10 @@ begin
       'Tree diff compares two commit revisions', PassedTests, TotalTests);
     AssertCliOutput('diff', [ListingTreeId, ListingTreeId], CapturePath, '',
       'Tree diff also accepts explicit tree IDs', PassedTests, TotalTests);
+    AssertEquals(1, RunCli('branch', ['noncommit-fixture', BinaryBlobId]),
+      'Branch creation rejects a blob as the start revision', PassedTests, TotalTests);
+    AssertTrue(not FileExists(JoinPaths(TestDir, '.anvil/refs/heads/noncommit-fixture')),
+      'Refusing a non-commit start leaves no branch reference', PassedTests, TotalTests);
     DiffPath := JoinPaths(TestDir, 'diff-fixture.txt');
     SavedIndex := ReadEntireFileString(JoinPaths(TestDir, '.anvil/index'));
     try
