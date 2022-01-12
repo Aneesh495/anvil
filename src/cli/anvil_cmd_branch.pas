@@ -16,7 +16,7 @@ interface
 
 uses
   SysUtils, Classes,
-  anvil_types, anvil_errors, anvil_hash, anvil_ref, anvil_lca, anvil_cli_common;
+  anvil_types, anvil_errors, anvil_hash, anvil_odb, anvil_ref, anvil_lca, anvil_cli_common;
 
 function RunCmdBranch(const Args: TStringArray): Integer;
 
@@ -49,6 +49,8 @@ var
   CurrentBranch: string;
   TargetId, ExistingId: TObjectId;
   StartRev: string;
+  ObjType: TObjectType;
+  RawData: TByteArray;
 begin
   Result := 1;
   if not OpenRepoContext(Ctx) then Exit;
@@ -113,9 +115,10 @@ begin
       else
         StartRev := 'HEAD';
 
-      if not ResolveRevision(Ctx, StartRev, TargetId) then
+      if not ResolveRevision(Ctx, StartRev, TargetId) or
+         not Ctx.ODB.ReadObjectRaw(TargetId, ObjType, RawData) or (ObjType <> otCommit) then
       begin
-        PrintError('fatal: Not a valid object name: ''' + StartRev + '''.');
+        PrintError('fatal: not a valid commit revision: ' + StartRev);
         Exit;
       end;
 
