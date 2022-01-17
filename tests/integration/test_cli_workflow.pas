@@ -124,6 +124,30 @@ begin
     { 3. anvil status }
     AssertEquals(0, RunCli('hash-object', ['-t', 'blob', 'app.pas']), 'hash-object accepts an explicit blob type', PassedTests, TotalTests);
     AssertEquals(1, RunCli('hash-object', ['-w', '-t', 'tree', 'app.pas']), 'hash-object rejects unsupported types instead of writing a blob', PassedTests, TotalTests);
+    CapturePath := JoinPaths(TestDir, '.anvil/hash-output');
+    WriteEntireFileString(JoinPaths(TestDir, '-w'), 'option-shaped contents'#10);
+    try
+      AssertCliOutput('hash-object', ['--', '-w'], CapturePath,
+        '0be834ee1662fac144be689b91b8e92767f5edc4'#10,
+        'hash-object accepts an option-shaped filename after --', PassedTests, TotalTests);
+      Odb := TObjectDatabase.Create(JoinPaths(TestDir, '.anvil/objects'));
+      try
+        AssertTrue(not Odb.Exists(HexToObjectId('0be834ee1662fac144be689b91b8e92767f5edc4')),
+          'A filename of -w does not enable writing', PassedTests, TotalTests);
+        AssertCliOutput('hash-object', ['-w', '--', '-w'], CapturePath,
+          '0be834ee1662fac144be689b91b8e92767f5edc4'#10,
+          'The explicit write option still works before --', PassedTests, TotalTests);
+        AssertTrue(Odb.Exists(HexToObjectId('0be834ee1662fac144be689b91b8e92767f5edc4')),
+          'The explicit -w stores the hashed object', PassedTests, TotalTests);
+      finally
+        Odb.Free;
+      end;
+      AssertEquals(1, RunCli('hash-object', ['app.pas', '-t']),
+        'hash-object requires a value for -t', PassedTests, TotalTests);
+    finally
+      DeleteFile(JoinPaths(TestDir, '-w'));
+      DeleteFile(CapturePath);
+    end;
     Code := RunCli('status', []);
     AssertEquals(0, Code, 'anvil status on untracked files', PassedTests, TotalTests);
 
