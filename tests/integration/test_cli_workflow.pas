@@ -260,6 +260,12 @@ begin
       'commit-tree leaves HEAD unchanged', PassedTests, TotalTests);
     AssertCliOutput('rev-list', ['-n', '-1', 'HEAD~1..HEAD'], CapturePath,
       ObjectIdToHex(HeadId) + LineEnding, 'rev-list treats a negative limit as unlimited', PassedTests, TotalTests);
+    AssertCliOutput('rev-list', ['HEAD~1...HEAD'], CapturePath,
+      ObjectIdToHex(HeadId) + LineEnding, 'Symmetric history excludes the shared ancestor', PassedTests, TotalTests);
+    AssertCliOutput('rev-list', ['HEAD...HEAD'], CapturePath, '',
+      'Symmetric history of identical revisions is empty', PassedTests, TotalTests);
+    AssertEquals(1, RunCli('rev-list', ['--max-count=0', BinaryBlobId + '...HEAD']),
+      'Symmetric history rejects a non-commit endpoint', PassedTests, TotalTests);
     AssertCliOutput('rev-list', ['--max-count=0'], CapturePath, '',
       'rev-list emits nothing with a zero limit', PassedTests, TotalTests);
     AssertCliOutput('log', ['--graph', '--max-count=0'], CapturePath, '',
