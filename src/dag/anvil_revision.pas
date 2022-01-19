@@ -46,6 +46,8 @@ type
 
 implementation
 
+uses anvil_lca;
+
 constructor TRevisionParser.Create(ARefMgr: TRefManager; AReflogMgr: TReflogManager;
                                    AODB: TObjectDatabase; Algo: THashAlgorithm);
 begin
@@ -244,7 +246,8 @@ function TRevisionParser.ParseRange(const RangeExpr: string;
 var
   TwoDotPos, ThreeDotPos: Integer;
   LeftStr, RightStr: string;
-  LeftId, RightId: TObjectId;
+  LeftId, RightId, CommitId: TObjectId;
+  Finder: TLcaFinder;
 begin
   SetLength(IncludeIds, 0);
   SetLength(ExcludeIds, 0);
@@ -262,7 +265,15 @@ begin
 
     if not Resolve(LeftStr, LeftId) or not Resolve(RightStr, RightId) then
       Exit(False);
+    if not StepParent(LeftId, 0, CommitId) or not StepParent(RightId, 0, CommitId) then
+      Exit(False);
 
+    Finder := TLcaFinder.Create(FODB);
+    try
+      ExcludeIds := Finder.FindMergeBases(LeftId, RightId);
+    finally
+      Finder.Free;
+    end;
     SetLength(IncludeIds, 2);
     IncludeIds[0] := LeftId;
     IncludeIds[1] := RightId;
