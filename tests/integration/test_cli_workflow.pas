@@ -266,6 +266,12 @@ begin
       'Symmetric history of identical revisions is empty', PassedTests, TotalTests);
     AssertEquals(1, RunCli('rev-list', ['--max-count=0', BinaryBlobId + '...HEAD']),
       'Symmetric history rejects a non-commit endpoint', PassedTests, TotalTests);
+    AssertEquals(1, RunCli('rev-list', ['--max-count=0', BinaryBlobId]),
+      'Revision listing validates explicit commits even with a zero limit', PassedTests, TotalTests);
+    AssertEquals(1, RunCli('rev-list', ['--max-count=0', BinaryBlobId + '..HEAD']),
+      'Two-dot history rejects an excluded endpoint that is not a commit', PassedTests, TotalTests);
+    AssertEquals(1, RunCli('log', ['--graph', '--max-count=0', BinaryBlobId]),
+      'Graph log rejects a non-commit start even with a zero limit', PassedTests, TotalTests);
     AssertCliOutput('rev-list', ['--max-count=0'], CapturePath, '',
       'rev-list emits nothing with a zero limit', PassedTests, TotalTests);
     AssertCliOutput('log', ['--graph', '--max-count=0'], CapturePath, '',
