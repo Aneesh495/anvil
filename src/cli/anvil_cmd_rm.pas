@@ -26,7 +26,7 @@ function RunCmdRm(const Args: TStringArray): Integer;
 var
   Ctx: TRepoContext;
   CachedOnly: Boolean;
-  PosArgs: TStringArray;
+  PosArgs, FullPaths, RelPaths: TStringArray;
   I: Integer;
   TargetArg, RelPath, FullPath: string;
   Entry: TIndexEntry;
@@ -44,7 +44,9 @@ begin
       Exit;
     end;
 
-    RemovedCount := 0;
+    SetLength(FullPaths, Length(PosArgs));
+    SetLength(RelPaths, Length(PosArgs));
+    { Resolve all pathspecs before removing any working files. }
     for I := 0 to Length(PosArgs) - 1 do
     begin
       TargetArg := PosArgs[I];
@@ -60,21 +62,26 @@ begin
         Exit;
       end;
 
-      Ctx.Index.RemoveAllStages(RelPath);
-      Inc(RemovedCount);
+      FullPaths[I] := FullPath;
+      RelPaths[I] := RelPath;
+    end;
 
-      if not CachedOnly then
+    RemovedCount := 0;
+    for I := 0 to High(RelPaths) do
+    begin
+      if not CachedOnly and FileExists(FullPaths[I]) and not DeleteFile(FullPaths[I]) then
       begin
-        if FileExists(FullPath) then
-          DeleteFile(FullPath);
+        PrintError('fatal: could not remove ''' + PosArgs[I] + '''');
+        Break;
       end;
+      Ctx.Index.RemoveAllStages(RelPaths[I]);
+      Inc(RemovedCount);
     end;
 
     if RemovedCount > 0 then
-    begin
       Ctx.Index.WriteToFile;
+    if RemovedCount = Length(RelPaths) then
       Result := 0;
-    end;
 
   finally
     CloseRepoContext(Ctx);
