@@ -174,6 +174,27 @@ begin
       if not FileExists(JoinPaths(TestDir, 'math.pas')) then
         WriteEntireFileString(JoinPaths(TestDir, 'math.pas'), SavedMath);
     end;
+    try
+      WriteEntireFileString(JoinPaths(TestDir, 'math.pas'), 'working edit'#10);
+      AssertEquals(1, RunCli('rm', ['math.pas']),
+        'Regular removal refuses an unstaged edit', PassedTests, TotalTests);
+      AssertTrue(FileExists(JoinPaths(TestDir, 'math.pas')),
+        'Refusing an unstaged edit keeps the file', PassedTests, TotalTests);
+
+      WriteEntireFileString(JoinPaths(TestDir, 'math.pas'), 'staged edit'#10);
+      AssertEquals(0, RunCli('add', ['math.pas']), 'Stage a changed removal fixture', PassedTests, TotalTests);
+      AssertEquals(1, RunCli('rm', ['math.pas']),
+        'Regular removal refuses a staged edit', PassedTests, TotalTests);
+      AssertTrue(FileExists(JoinPaths(TestDir, 'math.pas')),
+        'Refusing a staged edit keeps the file', PassedTests, TotalTests);
+      AssertEquals(0, RunCli('rm', ['-f', 'math.pas']),
+        'Explicit force removes a changed fixture', PassedTests, TotalTests);
+      AssertTrue(not FileExists(JoinPaths(TestDir, 'math.pas')),
+        'Forced regular removal deletes the file', PassedTests, TotalTests);
+    finally
+      WriteEntireFileString(JoinPaths(TestDir, '.anvil/index'), SavedIndex);
+      WriteEntireFileString(JoinPaths(TestDir, 'math.pas'), SavedMath);
+    end;
 
     { 6. anvil branch feature }
     Code := RunCli('branch', ['feature']);
