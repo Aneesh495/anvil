@@ -16,36 +16,97 @@ interface
 
 uses
   SysUtils, Classes,
-  anvil_types, anvil_errors, anvil_index, anvil_index_entry, anvil_cli_common, anvil_utils;
+  anvil_types, anvil_errors, anvil_hash, anvil_object, anvil_odb,
+  anvil_index, anvil_index_entry, anvil_cli_common, anvil_utils;
 
 function RunCmdRm(const Args: TStringArray): Integer;
 
 implementation
 
+function HeadTreeId(const Ctx: TRepoContext): TObjectId;
+var
+  CommitId: TObjectId;
+  Obj: TAnvilObject;
+begin
+  Result := NullObjectId(Ctx.Algo);
+  if not Ctx.RefMgr.Resolve('HEAD', CommitId) then Exit;
+  Obj := Ctx.ODB.ReadObject(CommitId);
+  try
+    if Obj is TCommitObject then
+      Result := TCommitObject(Obj).TreeId;
+  finally
+    Obj.Free;
+  end;
+end;
+
+function MatchesHead(const Odb: TObjectDatabase; const RootTree: TObjectId; const Entry: TIndexEntry): Boolean;
+var
+  Components: TStringArray;
+  Component: string;
+  TreeId: TObjectId;
+  Obj: TAnvilObject;
+  TreeEntry: TTreeEntry;
+begin
+  Result := False;
+  if (Entry.Stage <> 0) or IsNullObjectId(RootTree) then Exit;
+  Components := SplitStringByChar(Entry.Path, '/');
+  if Length(Components) = 0 then Exit;
+  TreeId := RootTree;
+  for Component in Components do
+  begin
+    Obj := Odb.ReadObject(TreeId);
+    try
+      if not (Obj is TTreeObject) or not TTreeObject(Obj).FindEntry(Component, TreeEntry) then
+        Exit;
+      TreeId := TreeEntry.Id;
+    finally
+      Obj.Free;
+    end;
+  end;
+  Result := ObjectIdEqual(TreeId, Entry.Id) and (TreeEntry.Mode = Entry.Mode);
+end;
+
+function MatchesWorkingFile(const FullPath: string; const Entry: TIndexEntry; Algo: THashAlgorithm): Boolean;
+var
+  Content: TFileStream;
+begin
+  if not FileExists(FullPath) then Exit(True);
+  Content := TFileStream.Create(FullPath, fmOpenRead or fmShareDenyNone);
+  try
+    Result := ObjectIdEqual(HashGitObjectStream(otBlob, Content, Content.Size, Algo), Entry.Id);
+  finally
+    Content.Free;
+  end;
+end;
+
 function RunCmdRm(const Args: TStringArray): Integer;
 var
   Ctx: TRepoContext;
-  CachedOnly: Boolean;
+  CachedOnly, CheckLocalChanges: Boolean;
   PosArgs, FullPaths, RelPaths: TStringArray;
   I: Integer;
   TargetArg, RelPath, FullPath: string;
   Entry: TIndexEntry;
+  HeadTree: TObjectId;
   RemovedCount: Integer;
 begin
   Result := 1;
   if not OpenRepoContext(Ctx) then Exit;
   try
     CachedOnly := HasFlag(Args, '', '--cached');
+    CheckLocalChanges := not CachedOnly and not HasFlag(Args, '-f', '--force');
     PosArgs := GetPositionalArgs(Args);
 
     if Length(PosArgs) = 0 then
     begin
-      PrintUsage('rm', '[--cached] <file>...', 'Remove files from the working tree and from the index');
+      PrintUsage('rm', '[-f] [--cached] <file>...', 'Remove files from the working tree and from the index');
       Exit;
     end;
 
     SetLength(FullPaths, Length(PosArgs));
     SetLength(RelPaths, Length(PosArgs));
+    if CheckLocalChanges then
+      HeadTree := HeadTreeId(Ctx);
     { Resolve all pathspecs before removing any working files. }
     for I := 0 to Length(PosArgs) - 1 do
     begin
@@ -59,6 +120,12 @@ begin
       if not Ctx.Index.FindAny(RelPath, Entry) then
       begin
         PrintError('fatal: pathspec ''' + TargetArg + ''' did not match any files');
+        Exit;
+      end;
+      if CheckLocalChanges and
+         (not MatchesHead(Ctx.ODB, HeadTree, Entry) or not MatchesWorkingFile(FullPath, Entry, Ctx.Algo)) then
+      begin
+        PrintError('fatal: pathspec ''' + TargetArg + ''' has local changes. Use -f to force removal.');
         Exit;
       end;
 

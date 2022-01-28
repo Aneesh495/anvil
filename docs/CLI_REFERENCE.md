@@ -30,9 +30,10 @@ Stages file modifications into the directory cache (`.anvil/index`):
 - `.` or `path`: Adds specified file or recursively adds matching directory contents.
 - Automatically resolves merge conflict stages into Stage 0 if resolved.
 
-### `anvil rm <path>... [--cached]`
+### `anvil rm [-f] [--cached] <path>...`
 Removes files from the working tree and staging index:
 - `--cached`: Only removes entries from the staging index, preserving the working tree copy.
+- Regular removal refuses paths with staged or unstaged content changes. Use `-f` or `--force` to override that check.
 
 ### `anvil commit -m <message> [--author <identity>]`
 Records staged changes into a new commit object:
