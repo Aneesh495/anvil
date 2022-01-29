@@ -81,7 +81,7 @@ procedure RunCliWorkflowTests(var PassedTests, TotalTests: Integer);
 const
   BinaryBlob = 'a'#0'b'#$FF#13#10;
 var
-  OriginalDir, TestDir, BoundaryDir, SavedIndex, SavedMath: string;
+  OriginalDir, TestDir, BoundaryDir, SavedIndex, SavedMath, StagedIndex: string;
   BinaryBlobId, EmptyBlobId, ListingTreeId, IncompleteTreeId, TreeListing, CapturePath, DiffPath, DiffIndex: string;
   BinaryBlobObjectId, EmptyTreeId, MissingTreeId, HeadId: TObjectId;
   Code: Integer;
@@ -191,6 +191,23 @@ begin
         'Explicit force removes a changed fixture', PassedTests, TotalTests);
       AssertTrue(not FileExists(JoinPaths(TestDir, 'math.pas')),
         'Forced regular removal deletes the file', PassedTests, TotalTests);
+    finally
+      WriteEntireFileString(JoinPaths(TestDir, '.anvil/index'), SavedIndex);
+      WriteEntireFileString(JoinPaths(TestDir, 'math.pas'), SavedMath);
+    end;
+    try
+      WriteEntireFileString(JoinPaths(TestDir, 'math.pas'), 'unique staged edit'#10);
+      AssertEquals(0, RunCli('add', ['math.pas']), 'Stage a distinct cached removal fixture', PassedTests, TotalTests);
+      StagedIndex := ReadEntireFileString(JoinPaths(TestDir, '.anvil/index'));
+      WriteEntireFileString(JoinPaths(TestDir, 'math.pas'), 'different working edit'#10);
+      AssertEquals(1, RunCli('rm', ['--cached', 'math.pas']),
+        'Cached removal refuses to drop a unique staged version', PassedTests, TotalTests);
+      AssertTrue(StagedIndex = ReadEntireFileString(JoinPaths(TestDir, '.anvil/index')),
+        'Refusing cached removal preserves the staged version', PassedTests, TotalTests);
+      AssertEquals(0, RunCli('rm', ['--cached', '-f', 'math.pas']),
+        'Force allows an intentional cached removal', PassedTests, TotalTests);
+      AssertTrue(ReadEntireFileString(JoinPaths(TestDir, 'math.pas')) = 'different working edit'#10,
+        'Forced cached removal preserves the working file', PassedTests, TotalTests);
     finally
       WriteEntireFileString(JoinPaths(TestDir, '.anvil/index'), SavedIndex);
       WriteEntireFileString(JoinPaths(TestDir, 'math.pas'), SavedMath);
