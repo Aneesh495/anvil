@@ -32,7 +32,7 @@ Stages file modifications into the directory cache (`.anvil/index`):
 
 ### `anvil rm [-f] [--cached] <path>...`
 Removes files from the working tree and staging index:
-- `--cached`: Only removes entries from the staging index, preserving the working tree copy.
+- Use `--cached` to remove an index entry while keeping the working file. The index entry must match either `HEAD` or the working file unless you also pass `-f`.
 - Regular removal refuses paths with staged or unstaged content changes. Use `-f` or `--force` to override that check.
 
 ### `anvil commit -m <message> [--author <identity>]`
