@@ -81,7 +81,7 @@ procedure RunCliWorkflowTests(var PassedTests, TotalTests: Integer);
 const
   BinaryBlob = 'a'#0'b'#$FF#13#10;
 var
-  OriginalDir, TestDir, BoundaryDir, SavedIndex, SavedMath, StagedIndex: string;
+  OriginalDir, TestDir, BoundaryDir, SavedIndex, SavedMath, StagedIndex, CommitBefore: string;
   BinaryBlobId, EmptyBlobId, ListingTreeId, IncompleteTreeId, TreeListing, CapturePath, DiffPath, DiffIndex: string;
   BinaryBlobObjectId, EmptyTreeId, MissingTreeId, HeadId: TObjectId;
   Code: Integer;
@@ -484,6 +484,8 @@ begin
     WriteEntireFileString(JoinPaths(TestDir, 'boundary-other/outside.txt'), 'outside sentinel'#10);
     SetCurrentDir(BoundaryDir);
     AssertEquals(0, RunCli('init', []), 'Initialize a separate repository for staging boundary checks', PassedTests, TotalTests);
+    AssertEquals(1, RunCli('commit', ['-m', 'empty initial attempt']),
+      'An empty initial commit still requires staged content', PassedTests, TotalTests);
     WriteEntireFileString(JoinPaths(BoundaryDir, 'inside.txt'), 'inside content'#10);
     AssertEquals(0, RunCli('add', ['inside.txt']), 'A file inside the repository can be staged', PassedTests, TotalTests);
     SavedIndex := ReadEntireFileString(JoinPaths(BoundaryDir, '.anvil/index'));
@@ -499,6 +501,17 @@ begin
     Code := RunCli('add', ['../boundary-other']);
     AssertTrue(Code <> 0, 'A sibling sharing the repository name prefix is outside the repository', PassedTests, TotalTests);
     AssertTrue(ReadEntireFileString(JoinPaths(BoundaryDir, '.anvil/index')) = SavedIndex, 'Rejected sibling directory leaves the saved index unchanged', PassedTests, TotalTests);
+
+    AssertEquals(0, RunCli('commit', ['-m', 'track one file']), 'Commit the only staged file', PassedTests, TotalTests);
+    CommitBefore := ReadEntireFileString(JoinPaths(BoundaryDir, '.anvil/refs/heads/main'));
+    AssertEquals(0, RunCli('rm', ['inside.txt']), 'Stage deletion of the only tracked file', PassedTests, TotalTests);
+    AssertEquals(0, RunCli('commit', ['-m', 'delete the last file']),
+      'Commit accepts a deletion that leaves an empty index', PassedTests, TotalTests);
+    AssertTrue(CommitBefore <> ReadEntireFileString(JoinPaths(BoundaryDir, '.anvil/refs/heads/main')),
+      'Committing the last deletion advances HEAD', PassedTests, TotalTests);
+    CapturePath := JoinPaths(BoundaryDir, '.anvil/last-file-test-output');
+    AssertCliOutput('ls-tree', ['HEAD'], CapturePath, '',
+      'The deletion commit records an empty tree', PassedTests, TotalTests);
 
   finally
     SetCurrentDir(OriginalDir);
