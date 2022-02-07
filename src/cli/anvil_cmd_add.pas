@@ -17,7 +17,7 @@ interface
 
 uses
   SysUtils, Classes,
-  anvil_types, anvil_errors, anvil_hash, anvil_odb, anvil_index,
+  anvil_types, anvil_errors, anvil_hash, anvil_odb, anvil_index, anvil_index_entry,
   anvil_ignore, anvil_cli_common, anvil_utils;
 
 function RunCmdAdd(const Args: TStringArray): Integer;
@@ -67,6 +67,7 @@ end;
 function RunCmdAdd(const Args: TStringArray): Integer;
 var
   Ctx: TRepoContext;
+  Entry: TIndexEntry;
   PosArgs: TStringArray;
   I: Integer;
   TargetArg, TargetPath, RelPath: string;
@@ -110,6 +111,11 @@ begin
 
         if not FileExists(TargetPath) and not DirectoryExists(TargetPath) then
         begin
+          if Ctx.Index.FindAny(RelPath, Entry) then
+          begin
+            Ctx.Index.RemoveAllStages(RelPath);
+            Continue;
+          end;
           PrintError('fatal: pathspec ''' + TargetArg + ''' did not match any files');
           Exit;
         end;
