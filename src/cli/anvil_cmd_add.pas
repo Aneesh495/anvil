@@ -64,6 +64,34 @@ begin
   end;
 end;
 
+procedure StageDirectoryDeletions(const RepoRoot, Scope: string; Index: TIndex);
+var
+  Prefix, FullPath: string;
+  Entry: TIndexEntry;
+  Missing: TStringList;
+  I: Integer;
+begin
+  Prefix := '';
+  if Scope <> '.' then
+    Prefix := Scope + '/';
+  Missing := TStringList.Create;
+  try
+    for I := 0 to Index.Count - 1 do
+    begin
+      Entry := Index.GetEntry(I);
+      if (Prefix <> '') and (Copy(Entry.Path, 1, Length(Prefix)) <> Prefix) then
+        Continue;
+      FullPath := JoinPaths(RepoRoot, Entry.Path);
+      if not FileExists(FullPath, False) and not DirectoryExists(FullPath, False) then
+        Missing.Add(Entry.Path);
+    end;
+    for I := 0 to Missing.Count - 1 do
+      Index.RemoveAllStages(Missing[I]);
+  finally
+    Missing.Free;
+  end;
+end;
+
 function RunCmdAdd(const Args: TStringArray): Integer;
 var
   Ctx: TRepoContext;
@@ -120,6 +148,8 @@ begin
           Exit;
         end;
 
+        if DirectoryExists(TargetPath) then
+          StageDirectoryDeletions(Ctx.RepoRoot, RelPath, Ctx.Index);
         AddPathRecursive(Ctx.RepoRoot, TargetPath, Ctx.ODB, Ctx.Index, Ignore);
       end;
 

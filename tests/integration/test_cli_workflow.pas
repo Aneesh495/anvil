@@ -529,6 +529,29 @@ begin
     AssertEquals(1, RunCli('add', ['never-tracked.txt']), 'An untracked missing path still reports an error',
       PassedTests, TotalTests);
 
+    EnsureDirectoryExists(JoinPaths(BoundaryDir, 'scoped-add'));
+    EnsureDirectoryExists(JoinPaths(BoundaryDir, 'scoped-add-other'));
+    WriteEntireFileString(JoinPaths(BoundaryDir, 'scoped-add/first.txt'), 'inside the scope'#10);
+    WriteEntireFileString(JoinPaths(BoundaryDir, 'scoped-add-other/second.txt'), 'outside the scope'#10);
+    AssertEquals(0, RunCli('add', ['scoped-add/first.txt', 'scoped-add-other/second.txt']),
+      'Stage files in the two sibling directories', PassedTests, TotalTests);
+    AssertEquals(0, RunCli('commit', ['-m', 'track siblings']), 'Commit the two sibling fixtures', PassedTests, TotalTests);
+    if not DeleteFile(JoinPaths(BoundaryDir, 'scoped-add/first.txt')) or
+       not DeleteFile(JoinPaths(BoundaryDir, 'scoped-add-other/second.txt')) then
+      raise Exception.Create('Could not delete the directory add fixtures');
+    SetCurrentDir(JoinPaths(BoundaryDir, 'scoped-add'));
+    AssertEquals(0, RunCli('add', ['.']), 'Add accepts a directory with only tracked deletions', PassedTests, TotalTests);
+    Index := TIndex.Create(JoinPaths(BoundaryDir, '.anvil/index'));
+    try
+      AssertTrue(not Index.FindAny('scoped-add/first.txt', Entry), 'Directory add stages its missing tracked file',
+        PassedTests, TotalTests);
+      AssertTrue(Index.FindAny('scoped-add-other/second.txt', Entry), 'Directory add leaves a sibling deletion unstaged',
+        PassedTests, TotalTests);
+    finally
+      Index.Free;
+      SetCurrentDir(BoundaryDir);
+    end;
+
   finally
     SetCurrentDir(OriginalDir);
     DeleteDirectoryRecursive(TestDir);
