@@ -114,11 +114,12 @@ This command does not currently walk reflogs or independently recompute every ob
 
 ## 2. Plumbing Commands
 
-### `anvil cat-file (-t | -s | -p) <object-id>`
+### `anvil cat-file [-t | -s | -p | -e] <object-id>`
 Inspects raw object database entries:
 - `-t`: Emits object type (`blob`, `tree`, `commit`, `tag`).
 - `-s`: Emits uncompressed payload byte size.
 - `-p`: Pretty-prints formatted object content.
+- Use `-e` to check that an object is readable. The command reports success or absence through its exit status.
 
 ### `anvil hash-object [-w] [-t blob] [--] <file>`
 Calculates the content-addressable hash of a file:

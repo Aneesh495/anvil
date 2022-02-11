@@ -388,6 +388,14 @@ begin
       'cat-file pretty mode preserves binary blob bytes', PassedTests, TotalTests);
     AssertCliOutput('cat-file', ['-p', EmptyBlobId], CapturePath, '',
       'cat-file pretty mode emits zero bytes for an empty blob', PassedTests, TotalTests);
+    AssertCliOutput('cat-file', ['-e', 'HEAD'], CapturePath, '',
+      'cat-file existence mode succeeds silently for a commit', PassedTests, TotalTests);
+    AssertCliOutput('cat-file', ['-e', BinaryBlobId], CapturePath, '',
+      'cat-file existence mode succeeds silently for a blob', PassedTests, TotalTests);
+    AssertEquals(1, RunCli('cat-file', ['-e', StringOfChar('8', 40)]),
+      'cat-file existence mode reports a missing object through its status', PassedTests, TotalTests);
+    AssertEquals(1, RunCli('cat-file', ['-e', '-p', 'HEAD']),
+      'cat-file existence mode rejects a second output mode', PassedTests, TotalTests);
 
     AssertEquals(1, RunCli('ls-tree', [BinaryBlobId]), 'ls-tree rejects a blob as a non-tree object', PassedTests, TotalTests);
     SavedIndex := ReadEntireFileString(JoinPaths(TestDir, '.anvil/index'));
