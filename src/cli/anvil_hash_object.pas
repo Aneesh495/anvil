@@ -32,7 +32,7 @@ var
   Data: TByteArray;
   Blob: TBlobObject;
   CalculatedId: TObjectId;
-  HasRepo: Boolean;
+  Input: TFileStream;
 begin
   Result := 1;
   WriteObj := False;
@@ -99,6 +99,18 @@ begin
     Exit;
   end;
 
+  if not WriteObj then
+  begin
+    Input := TFileStream.Create(FilePath, fmOpenRead or fmShareDenyNone);
+    try
+      CalculatedId := HashGitObjectStream(otBlob, Input, Input.Size);
+    finally
+      Input.Free;
+    end;
+    Writeln(ObjectIdToHex(CalculatedId));
+    Exit(0);
+  end;
+
   Data := ReadEntireFile(FilePath);
   if Length(Data) > 0 then
     Blob := TBlobObject.CreateWithData(@Data[0], Length(Data))
@@ -107,19 +119,15 @@ begin
 
   try
     CalculatedId := Blob.ObjectId;
-    if WriteObj then
+    if not OpenRepoContext(Ctx, False) then
     begin
-      HasRepo := OpenRepoContext(Ctx, False);
-      if not HasRepo then
-      begin
-        PrintError('fatal: not an anvil repository (or any of the parent directories): .anvil');
-        Exit;
-      end;
-      try
-        Ctx.ODB.WriteObject(Blob);
-      finally
-        CloseRepoContext(Ctx);
-      end;
+      PrintError('fatal: not an anvil repository (or any of the parent directories): .anvil');
+      Exit;
+    end;
+    try
+      Ctx.ODB.WriteObject(Blob);
+    finally
+      CloseRepoContext(Ctx);
     end;
 
     Writeln(ObjectIdToHex(CalculatedId));
