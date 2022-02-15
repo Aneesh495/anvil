@@ -125,6 +125,14 @@ begin
     AssertEquals(0, RunCli('hash-object', ['-t', 'blob', 'app.pas']), 'hash-object accepts an explicit blob type', PassedTests, TotalTests);
     AssertEquals(1, RunCli('hash-object', ['-w', '-t', 'tree', 'app.pas']), 'hash-object rejects unsupported types instead of writing a blob', PassedTests, TotalTests);
     CapturePath := JoinPaths(TestDir, '.anvil/hash-output');
+    WriteEntireFileString(JoinPaths(TestDir, 'hash-block-fixture'), StringOfChar('x', 8192) + 'y'#0);
+    try
+      AssertCliOutput('hash-object', ['hash-block-fixture'], CapturePath,
+        '4968530b8ee7d41b03d215b2230b4cb2220767c0'#10,
+        'Read-only hashing preserves a binary tail across input blocks', PassedTests, TotalTests);
+    finally
+      DeleteFile(JoinPaths(TestDir, 'hash-block-fixture'));
+    end;
     WriteEntireFileString(JoinPaths(TestDir, '-w'), 'option-shaped contents'#10);
     try
       AssertCliOutput('hash-object', ['--', '-w'], CapturePath,
