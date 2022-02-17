@@ -24,20 +24,72 @@ function RunCmdAdd(const Args: TStringArray): Integer;
 
 implementation
 
+procedure StageRegularFile(const FullPath, RelPath: string; ODB: TObjectDatabase; Index: TIndex);
+var
+  FileData: TByteArray;
+  BlobId: TObjectId;
+begin
+  FileData := ReadEntireFile(FullPath);
+  if Length(FileData) > 0 then
+    BlobId := ODB.WriteObjectRaw(otBlob, @FileData[0], Length(FileData))
+  else
+    BlobId := ODB.WriteObjectRaw(otBlob, nil, 0);
+
+  Index.RemoveAllStages(RelPath);
+  Index.AddFile(RelPath, BlobId, fmRegular, Length(FileData), 0);
+end;
+
+procedure StageTrackedBelow(const RepoRoot, RelPath: string; ODB: TObjectDatabase; Index: TIndex);
+var
+  Prefix, FullPath: string;
+  TrackedPaths: TStringList;
+  Entry: TIndexEntry;
+  I: Integer;
+begin
+  Prefix := RelPath + '/';
+  TrackedPaths := TStringList.Create;
+  try
+    { Collect paths before staging changes the index being traversed. }
+    for I := 0 to Index.Count - 1 do
+    begin
+      Entry := Index.GetEntry(I);
+      if Copy(Entry.Path, 1, Length(Prefix)) = Prefix then
+        TrackedPaths.Add(Entry.Path);
+    end;
+    for I := 0 to TrackedPaths.Count - 1 do
+    begin
+      FullPath := JoinPaths(RepoRoot, TrackedPaths[I]);
+      if FileExists(FullPath) then
+        StageRegularFile(FullPath, TrackedPaths[I], ODB, Index);
+    end;
+  finally
+    TrackedPaths.Free;
+  end;
+end;
+
 procedure AddPathRecursive(const RepoRoot, FullPath: string; ODB: TObjectDatabase;
                            Index: TIndex; Ignore: TIgnoreMatcher);
 var
   RelPath: string;
   Rec: TSearchRec;
   SubPath: string;
-  FileData: TByteArray;
-  BlobId: TObjectId;
+  IsDirectory: Boolean;
+  Entry: TIndexEntry;
 begin
   RelPath := MakeRelativePath(RepoRoot, FullPath);
-  if (RelPath <> '') and (RelPath <> '.') and Ignore.IsIgnored(RelPath, DirectoryExists(FullPath)) then
-    Exit;
+  IsDirectory := DirectoryExists(FullPath);
+  if (RelPath <> '') and (RelPath <> '.') and Ignore.IsIgnored(RelPath, IsDirectory) then
+  begin
+    if IsDirectory then
+    begin
+      StageTrackedBelow(RepoRoot, RelPath, ODB, Index);
+      Exit;
+    end;
+    if not Index.FindAny(RelPath, Entry) then
+      Exit;
+  end;
 
-  if DirectoryExists(FullPath) then
+  if IsDirectory then
   begin
     if FindFirst(JoinPaths(FullPath, '*'), faAnyFile, Rec) = 0 then
     begin
@@ -52,16 +104,7 @@ begin
     end;
   end
   else if FileExists(FullPath) then
-  begin
-    FileData := ReadEntireFile(FullPath);
-    if Length(FileData) > 0 then
-      BlobId := ODB.WriteObjectRaw(otBlob, @FileData[0], Length(FileData))
-    else
-      BlobId := ODB.WriteObjectRaw(otBlob, nil, 0);
-
-    Index.RemoveAllStages(RelPath);
-    Index.AddFile(RelPath, BlobId, fmRegular, Length(FileData), 0);
-  end;
+    StageRegularFile(FullPath, RelPath, ODB, Index);
 end;
 
 procedure StageDirectoryDeletions(const RepoRoot, Scope: string; Index: TIndex);
