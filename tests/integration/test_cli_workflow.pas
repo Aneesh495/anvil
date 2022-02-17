@@ -80,6 +80,7 @@ end;
 procedure RunCliWorkflowTests(var PassedTests, TotalTests: Integer);
 const
   BinaryBlob = 'a'#0'b'#$FF#13#10;
+  IgnoredUpdate = 'after'#10;
 var
   OriginalDir, TestDir, BoundaryDir, SavedIndex, SavedMath, StagedIndex, CommitBefore: string;
   BinaryBlobId, EmptyBlobId, ListingTreeId, IncompleteTreeId, TreeListing, CapturePath, DiffPath, DiffIndex: string;
@@ -566,6 +567,38 @@ begin
     finally
       Index.Free;
       SetCurrentDir(BoundaryDir);
+    end;
+
+    EnsureDirectoryExists(JoinPaths(BoundaryDir, 'ignored-add'));
+    WriteEntireFileString(JoinPaths(BoundaryDir, 'ignored-add/kept.txt'), 'before'#10);
+    WriteEntireFileString(JoinPaths(BoundaryDir, 'explicit-ignored.txt'), 'before'#10);
+    AssertEquals(0, RunCli('add', ['ignored-add/kept.txt', 'explicit-ignored.txt']),
+      'Track files before adding ignore rules', PassedTests, TotalTests);
+    AssertEquals(0, RunCli('commit', ['-m', 'track ignore fixtures']),
+      'Commit the ignore fixtures', PassedTests, TotalTests);
+    WriteEntireFileString(JoinPaths(BoundaryDir, '.gitignore'), 'ignored-add/'#10'explicit-ignored.txt'#10);
+    WriteEntireFileString(JoinPaths(BoundaryDir, 'explicit-ignored.txt'), IgnoredUpdate);
+    WriteEntireFileString(JoinPaths(BoundaryDir, 'ignored-add/kept.txt'), IgnoredUpdate);
+    WriteEntireFileString(JoinPaths(BoundaryDir, 'ignored-add/new.txt'), 'untracked'#10);
+    AssertEquals(0, RunCli('add', ['explicit-ignored.txt']), 'Add accepts a tracked path matching an ignore rule',
+      PassedTests, TotalTests);
+    BinaryBlobObjectId := HashGitObject(otBlob, PChar(IgnoredUpdate), Length(IgnoredUpdate));
+    Index := TIndex.Create(JoinPaths(BoundaryDir, '.anvil/index'));
+    try
+      AssertTrue(Index.FindAny('explicit-ignored.txt', Entry) and ObjectIdEqual(Entry.Id, BinaryBlobObjectId),
+        'Add stages new content at the explicitly named tracked and ignored path', PassedTests, TotalTests);
+    finally
+      Index.Free;
+    end;
+    AssertEquals(0, RunCli('add', ['.']), 'Add accepts a directory containing ignored paths', PassedTests, TotalTests);
+    Index := TIndex.Create(JoinPaths(BoundaryDir, '.anvil/index'));
+    try
+      AssertTrue(Index.FindAny('ignored-add/kept.txt', Entry) and ObjectIdEqual(Entry.Id, BinaryBlobObjectId),
+        'Directory add stages tracked edits under an ignored directory', PassedTests, TotalTests);
+      AssertTrue(not Index.FindAny('ignored-add/new.txt', Entry), 'Directory add leaves untracked ignored files unstaged',
+        PassedTests, TotalTests);
+    finally
+      Index.Free;
     end;
 
   finally
