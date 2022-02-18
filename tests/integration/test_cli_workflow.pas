@@ -59,7 +59,7 @@ begin
 end;
 
 procedure AssertCliOutput(const Cmd: string; const Args: array of string; const CapturePath,
-  Expected, Msg: string; var PassedTests, TotalTests: Integer);
+  Expected, Msg: string; var PassedTests, TotalTests: Integer; ExpectedCode: Integer = 0);
 var
   Code: Integer;
 begin
@@ -73,7 +73,7 @@ begin
     Assign(Output, '');
     Rewrite(Output);
   end;
-  AssertTrue((Code = 0) and (ReadEntireFileString(CapturePath) = Expected),
+  AssertTrue((Code = ExpectedCode) and (ReadEntireFileString(CapturePath) = Expected),
     Msg, PassedTests, TotalTests);
 end;
 
@@ -319,6 +319,18 @@ begin
       'commit-tree accepts a flag-shaped message before a parent option', PassedTests, TotalTests);
     AssertCliOutput('rev-parse', ['HEAD'], CapturePath, ObjectIdToHex(HeadId) + LineEnding,
       'commit-tree leaves HEAD unchanged', PassedTests, TotalTests);
+    AssertCliOutput('rev-parse', ['--verify', 'HEAD'], CapturePath, ObjectIdToHex(HeadId) + LineEnding,
+      'Verify prints the resolved revision', PassedTests, TotalTests);
+    AssertCliOutput('rev-parse', ['--verify', '--quiet'], CapturePath, '',
+      'Verify requires a revision', PassedTests, TotalTests, 1);
+    AssertCliOutput('rev-parse', ['--verify', '-q', 'HEAD', 'HEAD'], CapturePath, '',
+      'Verify rejects multiple revisions without printing a partial result', PassedTests, TotalTests, 1);
+    AssertCliOutput('rev-parse', ['--verify', '--quiet', 'missing-revision'], CapturePath, '',
+      'Quiet verify fails for an unknown revision', PassedTests, TotalTests, 1);
+    AssertCliOutput('rev-parse', ['--verify', '--end-of-options', 'HEAD'], CapturePath,
+      ObjectIdToHex(HeadId) + LineEnding, 'Verify accepts a revision after the end of options', PassedTests, TotalTests);
+    AssertCliOutput('rev-parse', ['--verify', '-q', '--end-of-options', 'HEAD', '--unknown-revision'],
+      CapturePath, '', 'Verify counts dash-prefixed arguments after the end of options', PassedTests, TotalTests, 1);
     AssertCliOutput('rev-list', ['-n', '-1', 'HEAD~1..HEAD'], CapturePath,
       ObjectIdToHex(HeadId) + LineEnding, 'rev-list treats a negative limit as unlimited', PassedTests, TotalTests);
     AssertCliOutput('rev-list', ['HEAD', '^HEAD~1'], CapturePath, ObjectIdToHex(HeadId) + LineEnding,
