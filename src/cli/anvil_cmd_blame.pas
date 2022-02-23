@@ -26,7 +26,7 @@ function RunCmdBlame(const Args: TStringArray): Integer;
 var
   Ctx: TRepoContext;
   PosArgs: TStringArray;
-  TargetFile, RelPath: string;
+  RelPath: string;
   HeadId: TObjectId;
   BlameEngine: TBlameEngine;
   BlameLines: TBlameLineArray;
@@ -42,11 +42,7 @@ begin
       Exit;
     end;
 
-    TargetFile := PosArgs[0];
-    if ExtractFilePath(TargetFile) = '' then
-      RelPath := TargetFile
-    else
-      RelPath := MakeRelativePath(Ctx.RepoRoot, ExpandFileName(TargetFile));
+    RelPath := MakeRelativePath(Ctx.RepoRoot, ExpandFileName(PosArgs[0]));
 
     if not Ctx.RefMgr.Resolve('HEAD', HeadId) then
     begin

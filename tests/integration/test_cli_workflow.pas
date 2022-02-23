@@ -613,6 +613,17 @@ begin
       Index.Free;
     end;
 
+    EnsureDirectoryExists(JoinPaths(BoundaryDir, 'nested-blame'));
+    WriteEntireFileString(JoinPaths(BoundaryDir, 'nested-blame/nested.txt'), 'subdirectory blame fixture'#10);
+    AssertEquals(0, RunCli('add', ['nested-blame/nested.txt']), 'Stage a nested blame fixture', PassedTests, TotalTests);
+    AssertEquals(0, RunCli('commit', ['-m', 'track nested blame fixture']),
+      'Commit the nested blame fixture', PassedTests, TotalTests);
+    SetCurrentDir(JoinPaths(BoundaryDir, 'nested-blame'));
+    AssertEquals(0, RunCli('blame', ['nested.txt']), 'Blame resolves a bare filename from the current subdirectory',
+      PassedTests, TotalTests);
+    AssertEquals(0, RunCli('blame', [JoinPaths(GetCurrentDir, 'nested.txt')]),
+      'Blame still accepts the absolute path inside the worktree', PassedTests, TotalTests);
+
   finally
     SetCurrentDir(OriginalDir);
     DeleteDirectoryRecursive(TestDir);
