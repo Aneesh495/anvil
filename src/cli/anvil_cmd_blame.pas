@@ -30,6 +30,7 @@ var
   HeadId: TObjectId;
   BlameEngine: TBlameEngine;
   BlameLines: TBlameLineArray;
+  FoundFile: Boolean;
   FormattedText: string;
 begin
   Result := 1;
@@ -52,8 +53,8 @@ begin
 
     BlameEngine := TBlameEngine.Create(Ctx.ODB, RelPath, HeadId);
     try
-      BlameLines := BlameEngine.Execute;
-      if Length(BlameLines) = 0 then
+      BlameLines := BlameEngine.Execute(FoundFile);
+      if not FoundFile then
       begin
         PrintError('fatal: no such path ''' + RelPath + ''' in HEAD');
         Exit;

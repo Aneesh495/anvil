@@ -639,6 +639,15 @@ begin
       PassedTests, TotalTests);
     AssertEquals(0, RunCli('blame', [JoinPaths(GetCurrentDir, 'nested.txt')]),
       'Blame still accepts the absolute path inside the worktree', PassedTests, TotalTests);
+    WriteEntireFileString(JoinPaths(GetCurrentDir, 'empty.txt'), '');
+    AssertEquals(0, RunCli('add', ['empty.txt']), 'Stage an empty blame fixture', PassedTests, TotalTests);
+    AssertEquals(0, RunCli('commit', ['-m', 'track empty blame fixture']),
+      'Commit the empty blame fixture', PassedTests, TotalTests);
+    CapturePath := JoinPaths(BoundaryDir, '.anvil/last-file-test-output');
+    AssertCliOutput('blame', ['empty.txt'], CapturePath, '',
+      'Blame succeeds without output for a tracked empty file', PassedTests, TotalTests);
+    AssertCliOutput('blame', ['missing.txt'], CapturePath, '',
+      'Blame still fails for a missing file', PassedTests, TotalTests, 1);
 
   finally
     SetCurrentDir(OriginalDir);
