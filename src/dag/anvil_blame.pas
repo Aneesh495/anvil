@@ -43,7 +43,8 @@ type
     constructor Create(AODB: TObjectDatabase; const AFilePath: string; const AStartCommitId: TObjectId);
 
     { Execute provenance walk and return line attribution array }
-    function Execute: TBlameLineArray;
+    function Execute: TBlameLineArray; overload;
+    function Execute(out FoundFile: Boolean): TBlameLineArray; overload;
 
     { Format standard terminal blame representation }
     function FormatOutput(const BlameLines: TBlameLineArray): string;
@@ -168,6 +169,13 @@ type
 
 function TBlameEngine.Execute: TBlameLineArray;
 var
+  FoundFile: Boolean;
+begin
+  Result := Execute(FoundFile);
+end;
+
+function TBlameEngine.Execute(out FoundFile: Boolean): TBlameLineArray;
+var
   InitialText: string;
   Lines: TStringArray;
   I: Integer;
@@ -185,8 +193,8 @@ var
 begin
   SetLength(Result, 0);
 
-  if not ReadFileAtCommit(FStartCommitId, FFilePath, InitialText) then
-    Exit;
+  FoundFile := ReadFileAtCommit(FStartCommitId, FFilePath, InitialText);
+  if not FoundFile or (InitialText = '') then Exit;
 
   Lines := SplitStringByChar(InitialText, #10);
   if (Length(Lines) > 0) and (Lines[Length(Lines) - 1] = '') and
