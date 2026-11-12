@@ -2,6 +2,7 @@
 # Free Pascal Compiler (FPC) Build Automation
 
 FPC ?= fpc
+PASCAL_SOURCES := $(shell find src -type f \( -name '*.pas' -o -name '*.inc' \))
 FPC_FLAGS = -O3 -Mobjfpc -Sh -Sc -Cg -FUbuild -FEbin \
             -Isrc/common -Isrc/crypto -Isrc/odb -Isrc/index -Isrc/diff \
             -Isrc/merge -Isrc/ref -Isrc/worktree -Isrc/dag -Isrc/protocol \
@@ -31,17 +32,17 @@ anvil: bin/anvil
 
 lib: lib/libanvil.$(DYLIB_EXT)
 
-bin/anvil: src/cli/anvil_main.pas | dirs
+bin/anvil: src/cli/anvil_main.pas $(PASCAL_SOURCES) | dirs
 	$(FPC) $(FPC_FLAGS) -obin/anvil src/cli/anvil_main.pas
 
-lib/libanvil.$(DYLIB_EXT): src/lib/libanvil.pas | dirs
+lib/libanvil.$(DYLIB_EXT): src/lib/libanvil.pas $(PASCAL_SOURCES) | dirs
 	$(FPC) $(FPC_FLAGS) $(FPC_LIB_FLAGS) -olib/libanvil.$(DYLIB_EXT) src/lib/libanvil.pas
 
-bin/anvil_test: tests/test_runner.pas $(wildcard tests/unit/*.pas) $(wildcard tests/integration/*.pas) | dirs
+bin/anvil_test: tests/test_runner.pas $(wildcard tests/unit/*.pas) $(wildcard tests/integration/*.pas) $(PASCAL_SOURCES) | dirs
 	$(FPC) $(FPC_FLAGS) -Itests/unit -Itests/integration -Futests/unit -Futests/integration \
 	      -obin/anvil_test tests/test_runner.pas
 
-bin/anvil_bench: benchmarks/bench_main.pas | dirs
+bin/anvil_bench: benchmarks/bench_main.pas $(PASCAL_SOURCES) | dirs
 	$(FPC) $(FPC_FLAGS) -Ibenchmarks -Fubenchmarks \
 	      -obin/anvil_bench benchmarks/bench_main.pas
 
