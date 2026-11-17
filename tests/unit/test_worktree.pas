@@ -72,7 +72,8 @@ var
   Options: TCheckoutOptions;
   CheckRes: TCheckoutResult;
 
-  Blob1, Blob2, Blob3: TBlobObject;
+  Blob1, Blob2, Blob3, StagedBlob: TBlobObject;
+  SavedEntry: TIndexEntry;
   Tree1, Tree2: TTreeObject;
   TreeId1, TreeId2: TObjectId;
   Commit1, Commit2: TCommitObject;
@@ -239,6 +240,51 @@ begin
       CheckRes := CheckoutMgr.CheckoutCommit(CommitId1, Options);
       AssertTrue(CheckRes.Success, 'Force checkout succeeds over dirty files', PassedTests, TotalTests);
       AssertEqualsStr('content one'#10, ReadEntireFileString(JoinPaths(TestDir, 'file1.txt')), 'file1.txt restored to clean content from commit 1', PassedTests, TotalTests);
+
+      { Non-forced checkout must preserve a local deletion. }
+      Options.Force := False;
+      Options.BranchName := 'feature';
+      DeleteFile(JoinPaths(TestDir, 'file1.txt'));
+      CheckRes := CheckoutMgr.CheckoutCommit(CommitId2, Options);
+      AssertTrue(not CheckRes.Success, 'Checkout refuses unstaged deletions', PassedTests, TotalTests);
+      AssertTrue(not FileExists(JoinPaths(TestDir, 'file1.txt')), 'Refused checkout preserves the local deletion', PassedTests, TotalTests);
+      AssertEqualsStr('ref: refs/heads/main'#10, ReadEntireFileString(JoinPaths(GitDir, 'HEAD')), 'Refused checkout leaves HEAD unchanged', PassedTests, TotalTests);
+      WriteEntireFileString(JoinPaths(TestDir, 'file1.txt'), 'content one'#10);
+
+      { Staged contents differ from HEAD even when the worktree matches the index. }
+      StagedBlob := TBlobObject.CreateWithString('staged work'#10);
+      try
+        ODB.WriteObject(StagedBlob);
+        WriteEntireFileString(JoinPaths(TestDir, 'file1.txt'), 'staged work'#10);
+        Index.AddFile('file1.txt', StagedBlob.ObjectId, fmRegular, 12);
+        Index.WriteToFile;
+        CheckRes := CheckoutMgr.CheckoutCommit(CommitId2, Options);
+        AssertTrue(not CheckRes.Success, 'Checkout refuses staged changes', PassedTests, TotalTests);
+        AssertEqualsStr('staged work'#10, ReadEntireFileString(JoinPaths(TestDir, 'file1.txt')), 'Refused checkout preserves staged file contents', PassedTests, TotalTests);
+        AssertTrue(Index.Find('file1.txt', 0, SavedEntry), 'Staged file remains in index', PassedTests, TotalTests);
+        AssertTrue(ObjectIdEqual(StagedBlob.ObjectId, SavedEntry.Id), 'Refused checkout preserves the staged blob', PassedTests, TotalTests);
+      finally
+        StagedBlob.Free;
+      end;
+      Index.ReadTree(ODB, TreeId1);
+      Index.WriteToFile;
+      WriteEntireFileString(JoinPaths(TestDir, 'file1.txt'), 'content one'#10);
+
+      { Preflight untracked collisions before deleting any current files. }
+      WriteEntireFileString(JoinPaths(TestDir, 'file3.txt'), 'untracked work'#10);
+      CheckRes := CheckoutMgr.CheckoutCommit(CommitId2, Options);
+      AssertTrue(not CheckRes.Success, 'Checkout refuses an untracked destination collision', PassedTests, TotalTests);
+      AssertEqualsStr('untracked work'#10, ReadEntireFileString(JoinPaths(TestDir, 'file3.txt')), 'Refused checkout preserves the untracked file', PassedTests, TotalTests);
+      AssertTrue(FileExists(JoinPaths(TestDir, 'file2.txt')), 'Collision check runs before deleting tracked files', PassedTests, TotalTests);
+      AssertEqualsStr('ref: refs/heads/main'#10, ReadEntireFileString(JoinPaths(GitDir, 'HEAD')), 'Collision leaves HEAD unchanged', PassedTests, TotalTests);
+      DeleteFile(JoinPaths(TestDir, 'file3.txt'));
+
+      { Unrelated untracked files do not block a clean branch switch. }
+      WriteEntireFileString(JoinPaths(TestDir, 'keep.txt'), 'keep me'#10);
+      CheckRes := CheckoutMgr.CheckoutCommit(CommitId2, Options);
+      AssertTrue(CheckRes.Success, 'Checkout allows unrelated untracked files', PassedTests, TotalTests);
+      AssertEqualsStr('keep me'#10, ReadEntireFileString(JoinPaths(TestDir, 'keep.txt')), 'Unrelated untracked file survives checkout', PassedTests, TotalTests);
+
     finally
       CheckoutMgr.Free;
     end;
