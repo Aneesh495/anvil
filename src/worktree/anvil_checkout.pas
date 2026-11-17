@@ -158,6 +158,7 @@ var
   TargetMode: TFileMode;
   NowTime: TDateTime;
   CurrentHeadTreeId: TObjectId;
+  HeadObj: TAnvilObject;
   Status: TWorktreeStatus;
 begin
   Result.Success := False;
@@ -165,33 +166,60 @@ begin
   Result.FilesDeleted := 0;
   Result.ErrorMessage := '';
 
-  { 1. Dirty check: check if any uncommitted changes would be clobbered }
+  { Flatten the target before checking collisions or changing any files. }
+  SetLength(TargetEntries, 0);
+  SetLength(TargetPaths, 0);
+  FlattenTree('', TargetTreeId, TargetEntries, TargetPaths);
+
+  { This checkout rewrites the index and target files, so reject local changes. }
   if not Force then
   begin
     CurrentHeadTreeId := NullObjectId;
     if FRefMgr.Resolve('HEAD', TargetId) then
     begin
-      { If HEAD resolves to a commit, find its tree }
+      HeadObj := FODB.ReadObject(TargetId);
+      if not Assigned(HeadObj) then
+        raise EObjectNotFound.CreateForObject(TargetId);
       try
-        TargetEntries := nil;
-        TargetPaths := nil;
-        FlattenTree('', TargetTreeId, TargetEntries, TargetPaths);
-      except
+        if not (HeadObj is TCommitObject) then
+          raise ECorruptObject.Create('HEAD does not reference a commit');
+        CurrentHeadTreeId := TCommitObject(HeadObj).TreeId;
+      finally
+        HeadObj.Free;
       end;
     end;
 
-    Status := GetWorkingTreeStatus(FWorkingDir, FGitDir, FODB, FIndex, TargetTreeId);
+    Status := GetWorkingTreeStatus(FWorkingDir, FGitDir, FODB, FIndex, CurrentHeadTreeId);
     if Length(Status.UnstagedModified) > 0 then
     begin
       Result.ErrorMessage := 'Cannot checkout: working tree contains unstaged modifications';
       Exit;
     end;
-  end;
+    if Length(Status.UnstagedDeleted) > 0 then
+    begin
+      Result.ErrorMessage := 'Cannot checkout: working tree contains unstaged deletions';
+      Exit;
+    end;
+    if Status.HasConflicts or (Length(Status.StagedNew) > 0) or
+       (Length(Status.StagedModified) > 0) or (Length(Status.StagedDeleted) > 0) then
+    begin
+      Result.ErrorMessage := 'Cannot checkout: index contains staged changes or conflicts';
+      Exit;
+    end;
 
-  { Flatten target tree }
-  SetLength(TargetEntries, 0);
-  SetLength(TargetPaths, 0);
-  FlattenTree('', TargetTreeId, TargetEntries, TargetPaths);
+    { Inspect destinations directly so ignored files are protected as well. }
+    for I := 0 to Length(TargetPaths) - 1 do
+    begin
+      Path := TargetPaths[I];
+      FullPath := JoinPaths(FWorkingDir, Path);
+      if not FIndex.Find(Path, 0, Entry) and
+         (FileExists(FullPath) or DirectoryExists(FullPath)) then
+      begin
+        Result.ErrorMessage := 'Cannot checkout: untracked path would be overwritten: ' + Path;
+        Exit;
+      end;
+    end;
+  end;
 
   { 2. Delete files that exist in current index but are absent from target tree }
   for I := 0 to FIndex.Count - 1 do
