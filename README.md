@@ -112,7 +112,7 @@ Prerequisites: Free Pascal Compiler (`fpc` 3.2.0 or newer) and standard POSIX ma
 ```bash
 git clone https://github.com/Aneesh495/anvil.git
 cd anvil
-make all
+make all && export PATH="$PWD/bin:$PATH"
 ```
 
 Build targets:
