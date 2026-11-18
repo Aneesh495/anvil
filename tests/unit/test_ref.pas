@@ -136,6 +136,26 @@ begin
     AssertTrue(RefMgr.Resolve('refs/tags/v1.0.0', ResolvedId), 'Resolves tag from packed-refs after loose deletion', PassedTests, TotalTests);
     AssertTrue(ObjectIdEqual(Id1, ResolvedId), 'Packed tag resolves to Id1', PassedTests, TotalTests);
 
+    { A deleted packed branch must remain deleted after reopening the repository. }
+    WriteEntireFileString(JoinPaths(GitDir, 'packed-refs'),
+      ReadEntireFileString(JoinPaths(GitDir, 'packed-refs')) + '^' + ObjectIdToHex(Id3) + #10);
+    AssertTrue(RefMgr.DeleteReference('refs/heads/feature'), 'Delete a packed branch', PassedTests, TotalTests);
+    RefMgr.Free;
+    RefMgr := TRefManager.Create(GitDir);
+    AssertTrue(not RefMgr.Resolve('refs/heads/feature', ResolvedId), 'Deleted packed branch stays absent after reopening', PassedTests, TotalTests);
+    AssertTrue(RefMgr.Resolve('refs/tags/v1.0.0', ResolvedId), 'Deleting a packed branch preserves other packed refs', PassedTests, TotalTests);
+    Ref := RefMgr.GetReference('refs/tags/v1.0.0');
+    try
+      AssertTrue(Assigned(Ref) and Ref.HasPeeled, 'Deleting another ref preserves a packed tag peeled record', PassedTests, TotalTests);
+    finally
+      Ref.Free;
+    end;
+    AssertTrue(RefMgr.DeleteReference('refs/tags/v1.0.0'), 'Delete a packed-only tag', PassedTests, TotalTests);
+    RefMgr.Free;
+    RefMgr := TRefManager.Create(GitDir);
+    AssertTrue(not RefMgr.Resolve('refs/tags/v1.0.0', ResolvedId), 'Deleted packed-only tag stays absent after reopening', PassedTests, TotalTests);
+    AssertTrue(Pos('^' + ObjectIdToHex(Id3), ReadEntireFileString(JoinPaths(GitDir, 'packed-refs'))) = 0, 'Deleting an annotated tag removes its peeled record', PassedTests, TotalTests);
+
     { --- 2. Reflog Manager Tests --- }
     Committer.Name := 'Test Author';
     Committer.Email := 'author@test.local';
