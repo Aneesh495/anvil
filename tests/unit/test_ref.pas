@@ -59,6 +59,10 @@ begin
 end;
 
 procedure RunRefTests(var PassedTests, TotalTests: Integer);
+const
+  InvalidNames: array[0..7] of string = (
+    '', 'refs/heads/a//b', 'refs/heads/.hidden', 'refs/.hidden/a',
+    'refs/heads/a.lock', 'refs/heads/a.lock/b', 'refs/heads/a.', '@');
 var
   TestDir, GitDir: string;
   RefMgr: TRefManager;
@@ -73,7 +77,7 @@ var
   Committer: TIdentity;
   Entries: TReflogEntryArray;
   RelEntry: TReflogEntry;
-  PrunedCount: Integer;
+  PrunedCount, I: Integer;
 
   C1, C2, C3: TCommitObject;
   TreeObj: TTreeObject;
@@ -93,6 +97,11 @@ begin
   RefMgr := TRefManager.Create(GitDir);
   ReflogMgr := TReflogManager.Create(GitDir);
   try
+    for I := Low(InvalidNames) to High(InvalidNames) do
+      AssertTrue(not IsValidRefName(InvalidNames[I]), 'Reject invalid reference name: ' + InvalidNames[I], PassedTests, TotalTests);
+    AssertTrue(IsValidRefName('HEAD'), 'Allow the HEAD pseudoreference', PassedTests, TotalTests);
+    AssertTrue(IsValidRefName('refs/heads/feature/topic'), 'Allow nested branch references', PassedTests, TotalTests);
+
     { Synthesize dummy IDs }
     Id1 := HexToObjectId('1111111111111111111111111111111111111111');
     Id2 := HexToObjectId('2222222222222222222222222222222222222222');

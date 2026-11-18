@@ -6,6 +6,8 @@ import hashlib
 import os
 from pathlib import Path
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -77,6 +79,35 @@ class TestPyAnvil(unittest.TestCase):
         with Repository.init(self.test_dir) as repo:
             repo.add("relative.txt")
             self.assertEqual(repo.status().staged_count, 1)
+
+    def test_invalid_branch_names_raise_without_terminating_python(self):
+        with Repository.init(self.test_dir) as repo:
+            Path(self.test_dir, "tracked.txt").write_text("content", encoding="utf-8")
+            repo.add("tracked.txt")
+            repo.commit("initial")
+
+        # An exception crossing the C ABI could terminate the interpreter, so
+        # run the rejection checks in a child process and inspect its result.
+        code = """
+import sys
+from pyanvil import Repository
+from pyanvil.errors import AnvilError
+with Repository(sys.argv[1]) as repo:
+    for name in ('bad..name', 'bad.lock', 'bad//name', '.hidden', 'bad.', ''):
+        try:
+            repo.branch(name)
+        except AnvilError:
+            continue
+        raise AssertionError(f'accepted invalid branch: {name!r}')
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", code, self.test_dir], capture_output=True, text=True
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            sorted(path.name for path in Path(self.test_dir, ".anvil/refs/heads").iterdir()),
+            ["main"],
+        )
 
     def test_reinitialization_preserves_repository_state(self):
         root = Path(self.test_dir)
