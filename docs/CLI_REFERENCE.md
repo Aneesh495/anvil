@@ -116,10 +116,10 @@ Inspects raw object database entries:
 - `-s`: Emits uncompressed payload byte size.
 - `-p`: Pretty-prints formatted object content.
 
-### `anvil hash-object [-w] [-t <type>] <file>`
+### `anvil hash-object [-w] [-t blob] <file>`
 Calculates the content-addressable hash of a file:
 - `-w`: Writes object into `.anvil/objects`.
-- `-t <type>`: Specifies object type (default: `blob`).
+- `-t blob`: Selects the supported object type, which is also the default.
 
 ### `anvil ls-tree [-r] <tree-ish>`
 Lists directory tree object contents:

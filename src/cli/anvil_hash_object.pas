@@ -39,6 +39,11 @@ begin
   WriteObj := HasFlag(Args, '-w', '');
   if not GetOptionValue(Args, '-t', '', TypeStr) then
     TypeStr := 'blob';
+  if TypeStr <> 'blob' then
+  begin
+    PrintError('fatal: hash-object supports only the blob type');
+    Exit;
+  end;
 
   PosArgs := GetPositionalArgs(Args);
 
@@ -63,8 +68,6 @@ begin
 
   try
     CalculatedId := Blob.ObjectId;
-    Writeln(ObjectIdToHex(CalculatedId));
-
     if WriteObj then
     begin
       HasRepo := OpenRepoContext(Ctx, False);
@@ -80,6 +83,7 @@ begin
       end;
     end;
 
+    Writeln(ObjectIdToHex(CalculatedId));
     Result := 0;
   finally
     Blob.Free;
