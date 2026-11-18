@@ -120,7 +120,7 @@ begin
       AuthorEmail := GetEnvironmentVariable('ANVIL_AUTHOR_EMAIL');
       if AuthorEmail = '' then AuthorEmail := 'aneesh@engine.internal';
 
-      Identity := MakeIdentity(AuthorName, AuthorEmail, DateTimeToUnix(Now), 0);
+      Identity := MakeIdentity(AuthorName, AuthorEmail, DateTimeToUnix(Now, False), 0);
       CommitObj.Author := Identity;
       CommitObj.Committer := Identity;
 
