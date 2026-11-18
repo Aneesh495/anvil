@@ -31,7 +31,7 @@ var
   MaxCount: Integer;
   EmittedCount: Integer;
   CommitId: TObjectId;
-  I: Integer;
+  Revisions: TStringArray;
   Arg: string;
   IncludeIds, ExcludeIds: TObjectIdArray;
   TargetId: TObjectId;
@@ -43,30 +43,34 @@ begin
     if GetOptionValue(Args, '-n', '--max-count', CountStr) then
       MaxCount := StrToIntDef(CountStr, MaxInt);
 
+    Revisions := GetPositionalArgs(Args);
     Walker := TCommitWalker.Create(Ctx.ODB, csoTopological);
     try
-      for I := 0 to Length(Args) - 1 do
+      for Arg in Revisions do
       begin
-        Arg := Args[I];
-        if (Length(Arg) > 0) and (Arg[1] = '-') then Continue;
-
         if Pos('..', Arg) > 0 then
         begin
-          if ResolveRevisionRange(Ctx, Arg, IncludeIds, ExcludeIds) then
+          if not ResolveRevisionRange(Ctx, Arg, IncludeIds, ExcludeIds) then
           begin
-            for CommitId in IncludeIds do Walker.Push(CommitId);
-            for CommitId in ExcludeIds do Walker.Hide(CommitId);
+            PrintError('fatal: invalid revision range: ' + Arg);
+            Exit;
           end;
+          for CommitId in IncludeIds do Walker.Push(CommitId);
+          for CommitId in ExcludeIds do Walker.Hide(CommitId);
         end
         else
         begin
-          if ResolveRevision(Ctx, Arg, TargetId) then
-            Walker.Push(TargetId);
+          if not ResolveRevision(Ctx, Arg, TargetId) then
+          begin
+            PrintError('fatal: invalid revision: ' + Arg);
+            Exit;
+          end;
+          Walker.Push(TargetId);
         end;
       end;
 
       { If no start points were specified, default to HEAD }
-      if ResolveRevision(Ctx, 'HEAD', TargetId) then
+      if (Length(Revisions) = 0) and ResolveRevision(Ctx, 'HEAD', TargetId) then
         Walker.Push(TargetId);
 
       EmittedCount := 0;
