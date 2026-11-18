@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Compiler: Free Pascal](https://img.shields.io/badge/FPC-3.2.2%2B-orange.svg)](https://www.freepascal.org/)
-[![Tests: 299 Passing](https://img.shields.io/badge/Tests-299%20Passed%20(100%25)-brightgreen.svg)]()
+![Native assertions: 300+ passing](https://img.shields.io/badge/Native%20assertions-300%2B%20passing-brightgreen.svg)
 [![Platform: macOS | Linux](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux-lightgrey.svg)]()
 
 Anvil is a complete, standalone distributed version control system and content-addressable object store engineered from first principles in Free Pascal (`objfpc` dialect). It features native binary and protocol compatibility with canonical Git repositories while delivering deterministic execution, zero runtime garbage collection pauses, and low memory overhead.
@@ -199,7 +199,7 @@ anvil/
 ├── tests/
 │   ├── unit/            # Unit verification suites across all subsystems
 │   ├── integration/     # End-to-end repository lifecycle workflows
-│   └── test_runner.pas  # Verification runner (299 test assertions)
+│   └── test_runner.pas  # Verification runner (make test reports the current assertion count)
 ├── benchmarks/          # Performance and throughput micro-benchmarking harness
 ├── docs/                # In-depth architectural and algorithmic specifications
 ├── Makefile             # Multi-target build configuration
