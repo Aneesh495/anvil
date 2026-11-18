@@ -74,6 +74,11 @@ begin
 
   Commit := TCommitObject(Obj);
   try
+    if ParentIndex = 0 then
+    begin
+      ParentId := CommitId;
+      Exit(True);
+    end;
     if (ParentIndex >= 1) and (ParentIndex <= Length(Commit.ParentIds)) then
     begin
       ParentId := Commit.ParentIds[ParentIndex - 1];
@@ -89,6 +94,8 @@ var
   CurrId, NextId: TObjectId;
   I: Integer;
 begin
+  if Generations = 0 then
+    Exit(StepParent(CommitId, 0, AncestorId));
   CurrId := CommitId;
   for I := 1 to Generations do
   begin
@@ -143,7 +150,7 @@ var
   PosAt, PosTilde, PosCaret: Integer;
   BasePart, ModifierPart: string;
   CurrentId, NextId: TObjectId;
-  I, Num: Integer;
+  I, Num, DigitsStart: Integer;
   AtNum: Integer;
   ReflogEnt: TReflogEntry;
 begin
@@ -195,13 +202,14 @@ begin
     if S[I] = '~' then
     begin
       Inc(I);
+      DigitsStart := I;
       Num := 0;
       while (I <= Length(S)) and (S[I] >= '0') and (S[I] <= '9') do
       begin
         Num := Num * 10 + (Ord(S[I]) - Ord('0'));
         Inc(I);
       end;
-      if Num = 0 then Num := 1;
+      if I = DigitsStart then Num := 1;
 
       if not StepAncestor(CurrentId, Num, NextId) then
         Exit(False);
@@ -210,13 +218,14 @@ begin
     else if S[I] = '^' then
     begin
       Inc(I);
+      DigitsStart := I;
       Num := 0;
       while (I <= Length(S)) and (S[I] >= '0') and (S[I] <= '9') do
       begin
         Num := Num * 10 + (Ord(S[I]) - Ord('0'));
         Inc(I);
       end;
-      if Num = 0 then Num := 1;
+      if I = DigitsStart then Num := 1;
 
       if not StepParent(CurrentId, Num, NextId) then
         Exit(False);
