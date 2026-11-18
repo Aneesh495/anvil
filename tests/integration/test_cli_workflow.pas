@@ -60,7 +60,7 @@ end;
 
 procedure RunCliWorkflowTests(var PassedTests, TotalTests: Integer);
 var
-  OriginalDir, TestDir: string;
+  OriginalDir, TestDir, BoundaryDir, SavedIndex: string;
   Code: Integer;
   Index: TIndex;
   Entry: TIndexEntry;
@@ -178,6 +178,29 @@ begin
     finally
       Index.Free;
     end;
+
+    { 17. Reject outside paths before persisting any staging changes. }
+    BoundaryDir := JoinPaths(TestDir, 'boundary');
+    EnsureDirectoryExists(BoundaryDir);
+    EnsureDirectoryExists(JoinPaths(TestDir, 'boundary-other'));
+    WriteEntireFileString(JoinPaths(TestDir, 'boundary-other/outside.txt'), 'outside sentinel'#10);
+    SetCurrentDir(BoundaryDir);
+    AssertEquals(0, RunCli('init', []), 'Initialize a separate repository for staging boundary checks', PassedTests, TotalTests);
+    WriteEntireFileString(JoinPaths(BoundaryDir, 'inside.txt'), 'inside content'#10);
+    AssertEquals(0, RunCli('add', ['inside.txt']), 'A file inside the repository can be staged', PassedTests, TotalTests);
+    SavedIndex := ReadEntireFileString(JoinPaths(BoundaryDir, '.anvil/index'));
+
+    Code := RunCli('add', ['../root-only.txt']);
+    AssertTrue(Code <> 0, 'Reject a parent-relative file outside the repository', PassedTests, TotalTests);
+    AssertTrue(ReadEntireFileString(JoinPaths(BoundaryDir, '.anvil/index')) = SavedIndex, 'Rejected parent path leaves the saved index unchanged', PassedTests, TotalTests);
+
+    Code := RunCli('add', [JoinPaths(TestDir, 'root-only.txt')]);
+    AssertTrue(Code <> 0, 'Reject an absolute file outside the repository', PassedTests, TotalTests);
+    AssertTrue(ReadEntireFileString(JoinPaths(BoundaryDir, '.anvil/index')) = SavedIndex, 'Rejected absolute path leaves the saved index unchanged', PassedTests, TotalTests);
+
+    Code := RunCli('add', ['../boundary-other']);
+    AssertTrue(Code <> 0, 'A sibling sharing the repository name prefix is outside the repository', PassedTests, TotalTests);
+    AssertTrue(ReadEntireFileString(JoinPaths(BoundaryDir, '.anvil/index')) = SavedIndex, 'Rejected sibling directory leaves the saved index unchanged', PassedTests, TotalTests);
 
   finally
     SetCurrentDir(OriginalDir);

@@ -3,12 +3,13 @@ Comprehensive test suite for Anvil Python bindings.
 """
 
 import os
+from pathlib import Path
 import shutil
 import tempfile
 import unittest
 
 from pyanvil import Repository, version, hash_bytes
-from pyanvil.errors import BranchExistsError
+from pyanvil.errors import AnvilError, BranchExistsError
 
 
 class TestPyAnvil(unittest.TestCase):
@@ -48,6 +49,28 @@ class TestPyAnvil(unittest.TestCase):
                 self.assertEqual(repo.status().staged_count, 1)
         finally:
             os.chdir(previous_cwd)
+
+    def test_add_outside_path_preserves_index(self):
+        root = Path(self.test_dir, "repo")
+        sibling = Path(self.test_dir, "repo-other")
+        sibling.mkdir()
+        outside = Path(self.test_dir, "outside.txt")
+        outside.write_text("outside sentinel", encoding="utf-8")
+        sibling_file = sibling / "outside.txt"
+        sibling_file.write_text("sibling sentinel", encoding="utf-8")
+
+        with Repository.init(str(root)) as repo:
+            (root / "inside.txt").write_text("inside content", encoding="utf-8")
+            repo.add("inside.txt")
+            index = root / ".anvil" / "index"
+            before = index.read_bytes()
+
+            for path in (str(outside), "../outside.txt", str(sibling_file)):
+                with self.subTest(path=path):
+                    with self.assertRaises(AnvilError):
+                        repo.add(path)
+                    self.assertEqual(index.read_bytes(), before)
+                    self.assertEqual(repo.status().staged_count, 1)
 
     def test_repo_lifecycle(self):
         # 1. Initialize
