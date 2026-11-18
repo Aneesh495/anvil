@@ -94,11 +94,18 @@ def hash_bytes(data: bytes) -> str:
     return buf.value.decode("utf-8")
 
 
+def _encode_c_string(value: str) -> bytes:
+    """Reject NUL before C would silently truncate a path, name, or message."""
+    if "\0" in value:
+        raise ValueError("embedded null character")
+    return value.encode("utf-8")
+
+
 class Repository:
     """High-level Python wrapper for an Anvil version control repository."""
 
     def __init__(self, path: Optional[str] = None):
-        c_path = path.encode("utf-8") if path else None
+        c_path = _encode_c_string(path) if path else None
         self._handle = _lib.anvil_repo_open(c_path)
         if not self._handle:
             raise RepositoryNotFoundError(f"Not an Anvil repository: {path or os.getcwd()}")
@@ -119,7 +126,7 @@ class Repository:
     @classmethod
     def init(cls, path: str, bare: bool = False) -> "Repository":
         """Initialize a new repository at path and return open Repository object."""
-        c_path = path.encode("utf-8")
+        c_path = _encode_c_string(path)
         ret = _lib.anvil_repo_init(c_path, 1 if bare else 0)
         if ret != 0:
             raise AnvilError(f"Failed to initialize repository at {path}, code {ret}")
@@ -129,7 +136,7 @@ class Repository:
         """Stage a file, resolving relative paths from the repository directory."""
         if not self._handle:
             raise AnvilError("Repository handle is closed")
-        c_path = os.path.join(self._path, file_path).encode("utf-8")
+        c_path = _encode_c_string(os.path.join(self._path, file_path))
         ret = _lib.anvil_add(self._handle, c_path)
         if ret != 0:
             raise AnvilError(f"Failed to add path {file_path}, code {ret}")
@@ -139,7 +146,7 @@ class Repository:
         if not self._handle:
             raise AnvilError("Repository handle is closed")
         buf = ctypes.create_string_buffer(41)
-        c_msg = message.encode("utf-8")
+        c_msg = _encode_c_string(message)
         ret = _lib.anvil_commit(self._handle, c_msg, buf, 40)
         if ret != 0:
             raise AnvilError(f"Failed to create commit, code {ret}")
@@ -160,8 +167,8 @@ class Repository:
         """Create a new branch."""
         if not self._handle:
             raise AnvilError("Repository handle is closed")
-        c_name = name.encode("utf-8")
-        c_rev = start_rev.encode("utf-8") if start_rev else None
+        c_name = _encode_c_string(name)
+        c_rev = _encode_c_string(start_rev) if start_rev else None
         ret = _lib.anvil_branch_create(self._handle, c_name, c_rev)
         if ret == -3:
             raise BranchExistsError(f"Branch {name} already exists")
@@ -172,7 +179,7 @@ class Repository:
         """Switch branches or restore files."""
         if not self._handle:
             raise AnvilError("Repository handle is closed")
-        c_target = target.encode("utf-8")
+        c_target = _encode_c_string(target)
         ret = _lib.anvil_checkout(self._handle, c_target)
         if ret != 0:
             raise CheckoutError(f"Failed to checkout {target}, code {ret}")
@@ -182,7 +189,7 @@ class Repository:
         if not self._handle:
             raise AnvilError("Repository handle is closed")
         buf = ctypes.create_string_buffer(41)
-        c_expr = rev_expr.encode("utf-8")
+        c_expr = _encode_c_string(rev_expr)
         ret = _lib.anvil_rev_parse(self._handle, c_expr, buf, 40)
         if ret != 0:
             raise RevisionNotFoundError(f"Failed to resolve revision {rev_expr}, code {ret}")
