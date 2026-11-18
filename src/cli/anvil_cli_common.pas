@@ -191,7 +191,8 @@ begin
     end;
 
     if (Args[I] = '-m') or (Args[I] = '-p') or (Args[I] = '-t') or
-       (Args[I] = '-b') or (Args[I] = '-n') or (Args[I] = '-L') then
+       (Args[I] = '-b') or (Args[I] = '-n') or (Args[I] = '-L') or
+       (Args[I] = '--message') or (Args[I] = '--max-count') then
     begin
       SkipNext := True;
       Continue;
