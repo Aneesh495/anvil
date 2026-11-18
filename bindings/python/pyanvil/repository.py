@@ -126,10 +126,10 @@ class Repository:
         return cls(path)
 
     def add(self, file_path: str):
-        """Stage a file in the index."""
+        """Stage a file, resolving relative paths from the repository directory."""
         if not self._handle:
             raise AnvilError("Repository handle is closed")
-        c_path = file_path.encode("utf-8")
+        c_path = os.path.join(self._path, file_path).encode("utf-8")
         ret = _lib.anvil_add(self._handle, c_path)
         if ret != 0:
             raise AnvilError(f"Failed to add path {file_path}, code {ret}")
