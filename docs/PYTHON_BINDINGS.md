@@ -23,38 +23,35 @@ export PYTHONPATH="/path/to/anvil/bindings/python:$PYTHONPATH"
 ## 2. Quickstart Example
 
 ```python
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
 from pyanvil import Repository, hash_bytes
 
 # Compute Git SHA-1 content hash of raw payload bytes
 digest = hash_bytes(b"hello world\n")
 print(f"Computed SHA-1: {digest}")
-# Output: 557db03de997c86a4a028e1ebd3a1ceb225be238
+# Output: 3b18e512dba79e4c8300dd08aeb37f8e728b8dad
 
-# Initialize a new repository
-repo = Repository.init("/tmp/my_repo")
+# Use a disposable repository and release its native handle before cleanup.
+with TemporaryDirectory(prefix="anvil-example-") as directory:
+    with Repository.init(directory) as repo:
+        Path(directory, "main.py").write_text(
+            "print('Hello from Anvil')\n", encoding="utf-8"
+        )
 
-# Create a source file in working tree
-with open("/tmp/my_repo/main.py", "w") as f:
-    f.write("print('Hello from Anvil')\n")
+        # Stage one path per call, then commit using the native identity.
+        repo.add("main.py")
+        commit_id = repo.commit("feat: initial python commit")
+        print(f"Created commit: {commit_id}")
 
-# Stage files and commit
-repo.add(["main.py"])
-commit_id = repo.commit(
-    message="feat: initial python commit",
-    author_name="Aneesh Krishna",
-    author_email="aneesh@example.com"
-)
-print(f"Created commit: {commit_id}")
+        status = repo.status()
+        print(f"Clean: {status.is_clean}")
+        print(f"Staged count: {status.staged_count}")
 
-# Inspect repository status
-status = repo.status()
-print(f"Active branch: {status.branch}")
-print(f"Staged count: {len(status.staged)}")
-print(f"Untracked count: {len(status.untracked)}")
-
-# Branching and switching
-repo.create_branch("feature/speedup")
-repo.checkout("feature/speedup")
+        repo.branch("feature/speedup")
+        repo.checkout("feature/speedup")
+        print(f"HEAD: {repo.rev_parse('HEAD')}")
 ```
 
 ---
@@ -64,24 +61,24 @@ repo.checkout("feature/speedup")
 ### Module-Level Functions
 
 - `version() -> str`: Returns the semantic version string of the underlying Anvil engine.
-- `hash_bytes(data: bytes, algo: str = "sha1") -> str`: Computes the 40-character (SHA-1) or 64-character (SHA-256) hexadecimal content-addressable hash of a byte slice.
+- `hash_bytes(data: bytes) -> str`: Computes the 40-character Git SHA-1 blob ID of a byte slice, including Git's blob header.
 
 ### `Repository` Class
 
 #### Lifecycle Management
 - `Repository.init(path: str, bare: bool = False) -> Repository`: Initializes a new repository on disk and returns an active instance.
-- `Repository.open(path: str) -> Repository`: Opens an existing repository containing an `.anvil` directory.
-- `repo.close()`: Frees native handles and unmaps allocated ODB resources. Context manager (`with Repository.open(...) as repo:`) is fully supported.
+- `Repository(path: Optional[str] = None) -> Repository`: Opens an existing repository, searching upward from `path` or the current directory for `.anvil` or `.git`.
+- `repo.close()`: Releases the native repository handle. Context manager (`with Repository(path) as repo:`) is fully supported.
 
 #### Working Tree and Staging
-- `repo.status() -> RepositoryStatus`: Scans working tree against index and returns staged, modified, untracked, and conflicting file paths.
-- `repo.add(paths: list[str])`: Stages one or more file paths into `.anvil/index`.
-- `repo.commit(message: str, author_name: str, author_email: str) -> str`: Creates a new commit object, writes it to the ODB, advances active branch reference, and returns the 40-character commit ID.
+- `repo.status() -> RepositoryStatus`: Returns `is_clean: bool` and `staged_count: int`; the binding does not expose per-file status lists.
+- `repo.add(file_path: str)`: Stages one file path into the repository index. Relative paths are resolved from the directory supplied when opening the repository.
+- `repo.commit(message: str) -> str`: Creates a commit, advances the active reference, and returns the 40-character commit ID. The binding uses the native library's identity and does not accept author arguments.
 
 #### Branches and Checkouts
-- `repo.create_branch(name: str)`: Creates a new reference under `refs/heads/<name>` pointing to current `HEAD`.
-- `repo.checkout(name: str)`: Atomically updates `HEAD`, staging index, and working tree files to match `<name>`.
-- `repo.head() -> str`: Resolves the active commit ID referenced by `HEAD`.
+- `repo.branch(name: str, start_rev: Optional[str] = None)`: Creates a branch from `start_rev`, defaulting to `HEAD`.
+- `repo.checkout(target: str)`: Checks out a branch or revision, refusing conflicting local changes.
+- `repo.rev_parse("HEAD") -> str`: Resolves the active commit ID referenced by `HEAD`.
 - `repo.rev_parse(rev: str) -> str`: Resolves arbitrary revision expressions (e.g. `main~1`, `v1.0.0`) to a full hexadecimal hash.
 
 ---
