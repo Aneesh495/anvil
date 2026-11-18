@@ -6,11 +6,12 @@ The `anvil` command line utility provides both high-level porcelain commands for
 
 ## Exit Codes
 
-All Anvil commands exit with standard status codes:
+The CLI currently uses these status codes:
 - `0`: Success. Operation completed cleanly.
-- `1`: Non-fatal failure (e.g. merge conflicts detected, diff found changes with `--exit-code`).
-- `2`: Command-line usage error or invalid argument syntax.
-- `128`: Repository corruption, missing objects, or fatal I/O error.
+- `1`: A command-reported failure, including invalid arguments, an unknown command, a missing repository, or merge conflicts.
+- `128`: An exception escaped the command and was reported by the top-level fatal-error handler, for example a filesystem write failure.
+
+There is no separate usage-error status `2`. `diff` does not currently implement `--exit-code`; a successful comparison returns `0` even when it prints changes.
 
 ---
 
