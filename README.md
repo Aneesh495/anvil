@@ -113,6 +113,7 @@ Prerequisites: Free Pascal Compiler (`fpc` 3.2.0 or newer) and standard POSIX ma
 git clone https://github.com/Aneesh495/anvil.git
 cd anvil
 make all && export PATH="$PWD/bin:$PATH"
+export PYTHONPATH="$PWD/bindings/python${PYTHONPATH:+:$PYTHONPATH}"
 ```
 
 Build targets:
