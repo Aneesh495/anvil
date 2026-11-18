@@ -66,7 +66,7 @@ const
 var
   TestDir, GitDir, SavedHead, SavedPacked: string;
   Rejected: Boolean;
-  RefMgr: TRefManager;
+  RefMgr, ParserRefMgr: TRefManager;
   ReflogMgr: TReflogManager;
   CommitGraph: TCommitGraph;
   ODB: TObjectDatabase;
@@ -216,6 +216,23 @@ begin
     RefMgr := TRefManager.Create(GitDir);
     AssertTrue(not RefMgr.Resolve('refs/tags/v1.0.0', ResolvedId), 'Deleted packed-only tag stays absent after reopening', PassedTests, TotalTests);
     AssertTrue(Pos('^' + ObjectIdToHex(Id3), ReadEntireFileString(JoinPaths(GitDir, 'packed-refs'))) = 0, 'Deleting an annotated tag removes its peeled record', PassedTests, TotalTests);
+
+    { A malformed record must not attach its peeled line to the prior tag. }
+    EnsureDirectoryExists(JoinPaths(TestDir, 'parse-check'));
+    WriteEntireFileString(JoinPaths(TestDir, 'parse-check/packed-refs'),
+      ObjectIdToHex(Id1) + ' refs/tags/valid'#10 +
+      'not-a-hash refs/tags/broken'#10 + '^' + ObjectIdToHex(Id3) + #10);
+    ParserRefMgr := TRefManager.Create(JoinPaths(TestDir, 'parse-check'));
+    try
+      Ref := ParserRefMgr.GetReference('refs/tags/valid');
+      try
+        AssertTrue(Assigned(Ref) and not Ref.HasPeeled, 'Malformed next record cannot supply the prior tag peel', PassedTests, TotalTests);
+      finally
+        Ref.Free;
+      end;
+    finally
+      ParserRefMgr.Free;
+    end;
 
     { --- 2. Reflog Manager Tests --- }
     Committer.Name := 'Test Author';
