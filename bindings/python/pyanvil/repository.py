@@ -168,7 +168,7 @@ class Repository:
         if not self._handle:
             raise AnvilError("Repository handle is closed")
         c_name = _encode_c_string(name)
-        c_rev = _encode_c_string(start_rev) if start_rev else None
+        c_rev = _encode_c_string(start_rev) if start_rev is not None else None
         ret = _lib.anvil_branch_create(self._handle, c_name, c_rev)
         if ret == -3:
             raise BranchExistsError(f"Branch {name} already exists")
