@@ -61,7 +61,7 @@ Compares changes between trees, the index, and working copy:
 
 ### `anvil merge <branch>`
 Reconciles divergent branches:
-- Automatically performs fast-forward merge if target is an ancestor.
+- Automatically performs a fast-forward merge when the current HEAD is an ancestor of the target.
 - Executes 3-way tree merge via Lowest Common Ancestor.
 - If conflicts arise, conflict markers are written to disk and stages 1/2/3 are retained in the index.
 
