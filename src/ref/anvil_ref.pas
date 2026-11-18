@@ -311,6 +311,8 @@ var
   Ref: TReference;
   I: Integer;
 begin
+  { Validate before turning an external name into a filesystem path. }
+  if not IsValidRefName(RefName) then Exit(nil);
   { 1. Check loose ref first }
   if ReadLooseRef(RefName, Ref) then
     Exit(Ref);
@@ -395,6 +397,8 @@ var
 begin
   if not IsValidRefName(RefName) then
     raise EInvalidReference.CreateWithCode(ERR_INVALID_REFERENCE, 'Invalid reference name: ' + RefName);
+  if not IsValidRefName(TargetRef) then
+    raise EInvalidReference.CreateWithCode(ERR_INVALID_REFERENCE, 'Invalid symbolic reference target: ' + TargetRef);
 
   RefPath := JoinPaths(FGitDir, RefName);
   Content := 'ref: ' + TargetRef + #10;
@@ -412,6 +416,7 @@ var
   PackedChanged, SkipPeeled: Boolean;
 begin
   Result := False;
+  if not IsValidRefName(RefName) then Exit;
 
   { Remove the on-disk packed entry before its loose override. Otherwise a
     deleted branch reappears the next time the packed-refs file is loaded.
