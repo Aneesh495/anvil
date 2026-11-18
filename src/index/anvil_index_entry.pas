@@ -73,7 +73,7 @@ begin
   Result.SkipWorktree := False;
   FillChar(Result.Stat, SizeOf(Result.Stat), 0);
   Result.Stat.FileSize := AFileSize;
-  Result.Stat.MTimeSecs := LongWord(DateTimeToUnix(Now));
+  Result.Stat.MTimeSecs := LongWord(DateTimeToUnix(Now, False));
   Result.Stat.CTimeSecs := Result.Stat.MTimeSecs;
   Result.Flags := (Word(AStage and 3) shl 12);
   if Length(APath) < $0FFF then

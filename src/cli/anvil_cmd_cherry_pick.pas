@@ -69,7 +69,7 @@ begin
     else
       CurrentBranch := 'HEAD';
 
-    Identity := MakeIdentity('Aneesh Krishna', 'aneesh@engine.internal', DateTimeToUnix(Now), 0);
+    Identity := MakeIdentity('Aneesh Krishna', 'aneesh@engine.internal', DateTimeToUnix(Now, False), 0);
     RebaseEngine := TRebaseEngine.Create(Ctx.ODB, Ctx.Index, Identity);
     try
       PickRes := RebaseEngine.CherryPick(SourceCommitId, HeadId);

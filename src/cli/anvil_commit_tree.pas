@@ -86,7 +86,7 @@ begin
       AuthorEmail := GetEnvironmentVariable('ANVIL_AUTHOR_EMAIL');
       if AuthorEmail = '' then AuthorEmail := 'aneesh@engine.internal';
 
-      CommitObj.Author := MakeIdentity(AuthorName, AuthorEmail, DateTimeToUnix(Now), 0);
+      CommitObj.Author := MakeIdentity(AuthorName, AuthorEmail, DateTimeToUnix(Now, False), 0);
       CommitObj.Committer := CommitObj.Author;
       if (MsgStr = '') or (MsgStr[Length(MsgStr)] <> #10) then
         MsgStr := MsgStr + #10;

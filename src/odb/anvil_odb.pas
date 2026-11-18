@@ -499,7 +499,7 @@ begin
       end;
     end;
 
-    BasePackPath := JoinPaths(PackDir, Format('pack-%d', [DateTimeToUnix(Now)]));
+    BasePackPath := JoinPaths(PackDir, Format('pack-%d', [DateTimeToUnix(Now, False)]));
     Writer.WritePack(BasePackPath, OutPack, OutIdx, PackChecksum);
 
     { Re-hash to include new packfile checksum }

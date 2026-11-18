@@ -190,7 +190,7 @@ begin
     if HasHead then
       CommitObj.AddParent(HeadCommitId);
 
-    Identity := MakeIdentity('Aneesh Krishna', 'aneesh@engine.internal', DateTimeToUnix(Now), 0);
+    Identity := MakeIdentity('Aneesh Krishna', 'aneesh@engine.internal', DateTimeToUnix(Now, False), 0);
     CommitObj.Author := Identity;
     CommitObj.Committer := Identity;
     MsgStr := StrPas(Msg);
