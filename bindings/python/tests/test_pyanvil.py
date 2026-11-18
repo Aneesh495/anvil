@@ -2,6 +2,7 @@
 Comprehensive test suite for Anvil Python bindings.
 """
 
+import hashlib
 import os
 from pathlib import Path
 import shutil
@@ -28,6 +29,46 @@ class TestPyAnvil(unittest.TestCase):
         # Canonical Git SHA-1 for "hello world\n"
         h = hash_bytes(b"hello world\n")
         self.assertEqual(h, "3b18e512dba79e4c8300dd08aeb37f8e728b8dad")
+
+    def test_hash_bytes_preserves_embedded_nul(self):
+        data = b"before\0after"
+        expected = hashlib.sha1(b"blob 12\0" + data).hexdigest()
+        self.assertEqual(hash_bytes(data), expected)
+
+    def test_repository_paths_reject_embedded_nul(self):
+        root = Path(self.test_dir, "repo")
+        with Repository.init(str(root)):
+            with self.assertRaises(ValueError):
+                with Repository(str(root) + "\0ignored"):
+                    pass
+
+        new_root = Path(self.test_dir, "new")
+        with self.assertRaises(ValueError):
+            with Repository.init(str(new_root) + "\0ignored"):
+                pass
+        self.assertFalse(new_root.exists())
+
+    def test_repository_operations_reject_embedded_nul(self):
+        with Repository.init(self.test_dir) as repo:
+            Path(self.test_dir, "safe.txt").write_text("safe content", encoding="utf-8")
+            repo.add("safe.txt")
+            head = repo.commit("initial")
+            index = Path(self.test_dir, ".anvil", "index")
+            before = index.read_bytes()
+            operations = {
+                "add": lambda: repo.add("safe.txt\0ignored"),
+                "commit": lambda: repo.commit("subject\0ignored"),
+                "branch name": lambda: repo.branch("unsafe\0ignored"),
+                "branch revision": lambda: repo.branch("unsafe-rev", "HEAD\0ignored"),
+                "checkout": lambda: repo.checkout("main\0ignored"),
+                "revision": lambda: repo.rev_parse("HEAD\0ignored"),
+            }
+            for name, operation in operations.items():
+                with self.subTest(operation=name):
+                    with self.assertRaises(ValueError):
+                        operation()
+                    self.assertEqual(repo.rev_parse("HEAD"), head)
+                    self.assertEqual(index.read_bytes(), before)
 
     def test_add_relative_path_uses_repository_directory(self):
         # A Repository can refer to a directory other than the process cwd.
