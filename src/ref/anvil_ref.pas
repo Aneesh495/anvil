@@ -21,7 +21,7 @@ uses
 
 const
   MAX_SYMREF_DEPTH = 8;
-  PACKED_REFS_HEADER = '# pack-refs with: peeled fully-peeled sorted';
+  PACKED_REFS_HEADER = '# pack-refs with: sorted';
 
 type
   { Reference type }
@@ -592,9 +592,10 @@ end;
 procedure TRefManager.PackReferences;
 var
   AllRefs: TStringArray;
-  I: Integer;
+  I, J: Integer;
   RefName: string;
   TargetId: TObjectId;
+  PackedRef: TReference;
   Content: string;
   PackedPath: string;
 begin
@@ -605,7 +606,20 @@ begin
   begin
     RefName := AllRefs[I];
     if Resolve(RefName, TargetId) then
+    begin
       Content := Content + ObjectIdToHex(TargetId) + ' ' + RefName + #10;
+      { Preserve a cached peel only while the tag still names that target. }
+      for J := 0 to FPackedRefs.Count - 1 do
+      begin
+        PackedRef := TReference(FPackedRefs[J]);
+        if (PackedRef.Name = RefName) and PackedRef.HasPeeled and
+           ObjectIdEqual(PackedRef.TargetId, TargetId) then
+        begin
+          Content := Content + '^' + ObjectIdToHex(PackedRef.PeeledId) + #10;
+          Break;
+        end;
+      end;
+    end;
   end;
 
   PackedPath := JoinPaths(FGitDir, 'packed-refs');
