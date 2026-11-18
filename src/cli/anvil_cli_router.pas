@@ -69,7 +69,7 @@ begin
   Writeln('   cat-file, hash-object, ls-tree, write-tree, read-tree, commit-tree,');
   Writeln('   rev-parse, rev-list');
   Writeln;
-  Writeln('See ''anvil <command> --help'' to read about a specific subcommand.');
+  Writeln('See docs/CLI_REFERENCE.md for command arguments and supported options.');
 end;
 
 function DispatchCliCommand(const CommandName: string; const Args: TStringArray): Integer;
