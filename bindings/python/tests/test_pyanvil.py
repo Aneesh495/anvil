@@ -36,6 +36,19 @@ class TestPyAnvil(unittest.TestCase):
             repo.add("relative.txt")
             self.assertEqual(repo.status().staged_count, 1)
 
+    def test_relative_repository_path_survives_cwd_change(self):
+        previous_cwd = os.getcwd()
+        try:
+            os.chdir(self.test_dir)
+            with Repository.init("repo") as repo:
+                with open(os.path.join(self.test_dir, "repo", "relative.txt"), "w") as f:
+                    f.write("stable repository path")
+                os.chdir(previous_cwd)
+                repo.add("relative.txt")
+                self.assertEqual(repo.status().staged_count, 1)
+        finally:
+            os.chdir(previous_cwd)
+
     def test_repo_lifecycle(self):
         # 1. Initialize
         repo = Repository.init(self.test_dir)

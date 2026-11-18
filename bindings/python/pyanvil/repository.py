@@ -102,7 +102,7 @@ class Repository:
         self._handle = _lib.anvil_repo_open(c_path)
         if not self._handle:
             raise RepositoryNotFoundError(f"Not an Anvil repository: {path or os.getcwd()}")
-        self._path = path or os.getcwd()
+        self._path = os.path.abspath(path or os.getcwd())
 
     def __enter__(self):
         return self
