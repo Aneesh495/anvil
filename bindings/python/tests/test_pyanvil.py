@@ -78,6 +78,49 @@ class TestPyAnvil(unittest.TestCase):
             repo.add("relative.txt")
             self.assertEqual(repo.status().staged_count, 1)
 
+    def test_reinitialization_preserves_repository_state(self):
+        root = Path(self.test_dir)
+        metadata = root / ".anvil"
+        with Repository.init(str(root)) as repo:
+            (root / "tracked.txt").write_text("initial content", encoding="utf-8")
+            repo.add("tracked.txt")
+            repo.commit("initial")
+            repo.branch("work")
+            repo.checkout("work")
+            (root / "tracked.txt").write_text("staged content", encoding="utf-8")
+            repo.add("tracked.txt")
+
+        config = metadata / "config"
+        config.write_text(config.read_text() + "[user]\n\tname = Keep Me\n")
+        saved = {
+            name: (metadata / name).read_bytes()
+            for name in ("HEAD", "config", "index", "refs/heads/work")
+        }
+
+        with Repository.init(str(root)) as reopened:
+            for name, content in saved.items():
+                with self.subTest(file=name):
+                    self.assertEqual((metadata / name).read_bytes(), content)
+            self.assertEqual(reopened.status().staged_count, 1)
+
+    def test_bare_reinitialization_preserves_head_and_config(self):
+        # Exercise the C ABI directly: opening bare repositories is not supported
+        # by Repository yet, but the native initializer accepts bare=True.
+        from pyanvil.repository import _lib
+
+        root = Path(self.test_dir)
+        encoded_root = os.fsencode(root)
+        self.assertEqual(_lib.anvil_repo_init(encoded_root, 1), 0)
+        head = root / "HEAD"
+        config = root / "config"
+        head.write_bytes(b"ref: refs/heads/work\n")
+        custom_config = config.read_bytes() + b"[user]\n\tname = Keep Me\n"
+        config.write_bytes(custom_config)
+
+        self.assertEqual(_lib.anvil_repo_init(encoded_root, 1), 0)
+        self.assertEqual(head.read_bytes(), b"ref: refs/heads/work\n")
+        self.assertEqual(config.read_bytes(), custom_config)
+
     def test_relative_repository_path_survives_cwd_change(self):
         previous_cwd = os.getcwd()
         try:
