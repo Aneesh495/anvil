@@ -28,6 +28,14 @@ class TestPyAnvil(unittest.TestCase):
         h = hash_bytes(b"hello world\n")
         self.assertEqual(h, "3b18e512dba79e4c8300dd08aeb37f8e728b8dad")
 
+    def test_add_relative_path_uses_repository_directory(self):
+        # A Repository can refer to a directory other than the process cwd.
+        with open(os.path.join(self.test_dir, "relative.txt"), "w") as f:
+            f.write("repository-relative path\n")
+        with Repository.init(self.test_dir) as repo:
+            repo.add("relative.txt")
+            self.assertEqual(repo.status().staged_count, 1)
+
     def test_repo_lifecycle(self):
         # 1. Initialize
         repo = Repository.init(self.test_dir)
