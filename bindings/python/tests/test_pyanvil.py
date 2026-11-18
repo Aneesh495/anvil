@@ -134,6 +134,37 @@ with Repository(sys.argv[1]) as repo:
                     self.assertEqual((metadata / name).read_bytes(), content)
             self.assertEqual(reopened.status().staged_count, 1)
 
+    def test_locked_reference_writes_raise_without_terminating_python(self):
+        root = Path(self.test_dir)
+        with Repository.init(str(root)) as repo:
+            (root / "tracked.txt").write_text("content", encoding="utf-8")
+            repo.add("tracked.txt")
+            head = repo.commit("initial")
+        locks = [root / ".anvil/refs/heads" / name for name in ("main.lock", "blocked.lock")]
+        for lock in locks:
+            lock.write_text("other writer", encoding="utf-8")
+        code = """
+import sys
+from pyanvil import Repository
+from pyanvil.errors import AnvilError
+accepted = []
+with Repository(sys.argv[1]) as repo:
+    for operation in (lambda: repo.branch('blocked'), lambda: repo.commit('blocked')):
+        try:
+            operation()
+        except AnvilError:
+            continue
+        accepted.append('locked write accepted')
+assert not accepted, accepted
+"""
+        result = subprocess.run([sys.executable, "-c", code, str(root)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for lock in locks:
+            self.assertEqual(lock.read_text(), "other writer")
+        with Repository(str(root)) as repo:
+            self.assertEqual(repo.rev_parse("HEAD"), head)
+        self.assertFalse((root / ".anvil/refs/heads/blocked").exists())
+
     def test_bare_reinitialization_preserves_head_and_config(self):
         # Exercise the C ABI directly: opening bare repositories is not supported
         # by Repository yet, but the native initializer accepts bare=True.
