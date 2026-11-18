@@ -64,7 +64,7 @@ const
     '', 'refs/heads/a//b', 'refs/heads/.hidden', 'refs/.hidden/a',
     'refs/heads/a.lock', 'refs/heads/a.lock/b', 'refs/heads/a.', '@');
 var
-  TestDir, GitDir, SavedHead: string;
+  TestDir, GitDir, SavedHead, SavedPacked: string;
   Rejected: Boolean;
   RefMgr: TRefManager;
   ReflogMgr: TReflogManager;
@@ -178,6 +178,19 @@ begin
     { Pack references }
     RefMgr.PackReferences;
     AssertTrue(FileExists(JoinPaths(GitDir, 'packed-refs')), 'packed-refs file generated', PassedTests, TotalTests);
+
+    SavedPacked := ReadEntireFileString(JoinPaths(GitDir, 'packed-refs'));
+    WriteEntireFileString(JoinPaths(GitDir, 'packed-refs.lock'), 'other writer');
+    Rejected := False;
+    try
+      RefMgr.PackReferences;
+    except
+      on E: EReferenceLocked do Rejected := True;
+    end;
+    AssertTrue(Rejected, 'Packing reports a failed packed-refs lock acquisition', PassedTests, TotalTests);
+    AssertEqualsStr(SavedPacked, ReadEntireFileString(JoinPaths(GitDir, 'packed-refs')), 'A failed pack preserves the previous packed refs', PassedTests, TotalTests);
+    AssertEqualsStr('other writer', ReadEntireFileString(JoinPaths(GitDir, 'packed-refs.lock')), 'A failed pack preserves the other writer lock', PassedTests, TotalTests);
+    DeleteFile(JoinPaths(GitDir, 'packed-refs.lock'));
 
     { Delete loose ref to verify packed-refs fallback resolution }
     DeleteFile(JoinPaths(GitDir, 'refs/tags/v1.0.0'));
