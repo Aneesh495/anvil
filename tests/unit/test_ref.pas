@@ -64,7 +64,8 @@ const
     '', 'refs/heads/a//b', 'refs/heads/.hidden', 'refs/.hidden/a',
     'refs/heads/a.lock', 'refs/heads/a.lock/b', 'refs/heads/a.', '@');
 var
-  TestDir, GitDir: string;
+  TestDir, GitDir, SavedHead: string;
+  Rejected: Boolean;
   RefMgr: TRefManager;
   ReflogMgr: TReflogManager;
   CommitGraph: TCommitGraph;
@@ -128,6 +129,25 @@ begin
     { Resolve HEAD -> resolves to Id1 }
     AssertTrue(RefMgr.Resolve('HEAD', ResolvedId), 'Resolve HEAD succeeds through symbolic chain', PassedTests, TotalTests);
     AssertTrue(ObjectIdEqual(Id1, ResolvedId), 'HEAD resolves to Id1', PassedTests, TotalTests);
+
+    { Reference names must never address metadata outside the repository. }
+    WriteEntireFileString(JoinPaths(TestDir, 'outside'), ObjectIdToHex(Id1) + #10);
+    Ref := RefMgr.GetReference('../outside');
+    AssertTrue(not Assigned(Ref), 'Reject an outside reference read', PassedTests, TotalTests);
+    Ref.Free;
+    AssertTrue(not RefMgr.DeleteReference('../outside'), 'Reject an outside reference deletion', PassedTests, TotalTests);
+    AssertTrue(FileExists(JoinPaths(TestDir, 'outside')), 'Rejected reference deletion preserves the outside file', PassedTests, TotalTests);
+
+    SavedHead := ReadEntireFileString(JoinPaths(GitDir, 'HEAD'));
+    Rejected := False;
+    try
+      RefMgr.SetSymbolicReference('HEAD', '../outside');
+    except
+      on E: EInvalidReference do Rejected := True;
+    end;
+    AssertTrue(Rejected, 'Reject an invalid symbolic-reference target', PassedTests, TotalTests);
+    AssertEqualsStr(SavedHead, ReadEntireFileString(JoinPaths(GitDir, 'HEAD')), 'Rejected symbolic target leaves HEAD unchanged', PassedTests, TotalTests);
+    RefMgr.SetSymbolicReference('HEAD', 'refs/heads/main');
 
     { Create tags and branches }
     RefMgr.SetReference('refs/heads/feature', Id2);
