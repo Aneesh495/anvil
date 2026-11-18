@@ -148,6 +148,9 @@ begin
     Code := RunCli('log', ['--oneline']);
     AssertEquals(0, Code, 'anvil log --oneline succeeds', PassedTests, TotalTests);
 
+    AssertEquals(0, RunCli('cat-file', ['-t', 'HEAD']), 'cat-file type mode retains its object argument', PassedTests, TotalTests);
+    AssertEquals(0, RunCli('cat-file', ['-p', 'HEAD']), 'cat-file pretty mode retains its object argument', PassedTests, TotalTests);
+
     { 12. anvil tag v1.0.0 }
     Code := RunCli('tag', ['v1.0.0']);
     AssertEquals(0, Code, 'anvil tag v1.0.0 creates tag', PassedTests, TotalTests);
