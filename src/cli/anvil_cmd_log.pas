@@ -27,7 +27,6 @@ function RunCmdLog(const Args: TStringArray): Integer;
 var
   Ctx: TRepoContext;
   IsOneLine, ShowGraph: Boolean;
-  CountStr: string;
   MaxCount: Integer;
   StartRev: string;
   StartId, CommitId: TObjectId;
@@ -51,9 +50,7 @@ begin
     IsOneLine := HasFlag(Args, '', '--oneline');
     ShowGraph := HasFlag(Args, '', '--graph');
 
-    MaxCount := MaxInt;
-    if GetOptionValue(Args, '-n', '--max-count', CountStr) then
-      MaxCount := StrToIntDef(CountStr, MaxInt);
+    if not ParseCommitLimit(Args, MaxCount) then Exit;
 
     PosArgs := GetPositionalArgs(Args);
     if Length(PosArgs) > 0 then
