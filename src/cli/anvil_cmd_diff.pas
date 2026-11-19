@@ -24,6 +24,29 @@ function RunCmdDiff(const Args: TStringArray): Integer;
 
 implementation
 
+function ResolveDiffTree(const Ctx: TRepoContext; const Revision: string; out TreeId: TObjectId): Boolean;
+var
+  ObjType: TObjectType;
+  RawData: TByteArray;
+  CommitObj: TCommitObject;
+begin
+  Result := ResolveRevision(Ctx, Revision, TreeId) and Ctx.ODB.ReadObjectRaw(TreeId, ObjType, RawData);
+  if Result and (ObjType = otCommit) then
+  begin
+    CommitObj := TCommitObject.Create;
+    try
+      CommitObj.Deserialize(Pointer(RawData), Length(RawData));
+      TreeId := CommitObj.TreeId;
+    finally
+      CommitObj.Free;
+    end;
+    Result := Ctx.ODB.ReadObjectRaw(TreeId, ObjType, RawData);
+  end;
+  Result := Result and (ObjType = otTree);
+  if not Result then
+    PrintError('fatal: not a valid tree or commit revision: ' + Revision);
+end;
+
 function RunCmdDiff(const Args: TStringArray): Integer;
 var
   Ctx: TRepoContext;
@@ -71,35 +94,9 @@ begin
       else
         RevB := 'HEAD';
 
-      if not ResolveRevision(Ctx, RevA, OldTreeId) or
-         not ResolveRevision(Ctx, RevB, NewTreeId) then
-      begin
-        PrintError('fatal: invalid revision range: ' + PosArgs[0]);
+      if not ResolveDiffTree(Ctx, RevA, OldTreeId) or
+         not ResolveDiffTree(Ctx, RevB, NewTreeId) then
         Exit;
-      end;
-
-      { If resolved objects are commits, extract root trees }
-      if Ctx.ODB.ReadObjectRaw(OldTreeId, ObjType, RawData) and (ObjType = otCommit) then
-      begin
-        CommitObj := TCommitObject.Create;
-        try
-          CommitObj.Deserialize(@RawData[0], Length(RawData));
-          OldTreeId := CommitObj.TreeId;
-        finally
-          CommitObj.Free;
-        end;
-      end;
-
-      if Ctx.ODB.ReadObjectRaw(NewTreeId, ObjType, RawData) and (ObjType = otCommit) then
-      begin
-        CommitObj := TCommitObject.Create;
-        try
-          CommitObj.Deserialize(@RawData[0], Length(RawData));
-          NewTreeId := CommitObj.TreeId;
-        finally
-          CommitObj.Free;
-        end;
-      end;
     end
     else if IsStaged then
     begin
