@@ -144,3 +144,4 @@ Resolves references, object IDs, ancestor expressions such as `main~2` and `HEAD
 Lists commit IDs in topological order from the supplied revisions or ranges. When no revision is supplied, the walk starts at `HEAD`. An unresolved revision or range exits with an error.
 
 Use `A...B` to list commits reachable from either side after excluding their shared history.
+Use `^B` with one or more starting revisions to exclude commits reachable from `B`.

@@ -312,6 +312,10 @@ begin
       'commit-tree leaves HEAD unchanged', PassedTests, TotalTests);
     AssertCliOutput('rev-list', ['-n', '-1', 'HEAD~1..HEAD'], CapturePath,
       ObjectIdToHex(HeadId) + LineEnding, 'rev-list treats a negative limit as unlimited', PassedTests, TotalTests);
+    AssertCliOutput('rev-list', ['HEAD', '^HEAD~1'], CapturePath, ObjectIdToHex(HeadId) + LineEnding,
+      'rev-list accepts a leading caret to hide a commit and its ancestors', PassedTests, TotalTests);
+    AssertCliOutput('rev-list', ['HEAD', '^HEAD'], CapturePath, '',
+      'Explicit exclusion can remove every commit from the walk', PassedTests, TotalTests);
     AssertCliOutput('rev-list', ['HEAD~1...HEAD'], CapturePath,
       ObjectIdToHex(HeadId) + LineEnding, 'Symmetric history excludes the shared ancestor', PassedTests, TotalTests);
     AssertCliOutput('rev-list', ['HEAD...HEAD'], CapturePath, '',
