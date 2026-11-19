@@ -245,6 +245,12 @@ begin
       AssertCliOutput('diff', [], CapturePath, '', 'Worktree diff ignores unchanged staged content',
         PassedTests, TotalTests);
       DiffIndex := ReadEntireFileString(JoinPaths(TestDir, '.anvil/index'));
+      WriteEntireFileString(DiffPath, 'beta'#10);
+      AssertCliOutput('diff', [], CapturePath,
+        'diff --git a/diff-fixture.txt b/diff-fixture.txt'#10'index 7e74e68..65b2df8 100644'#10 +
+        '--- a/diff-fixture.txt'#10'+++ b/diff-fixture.txt'#10'@@ -1,1 +1,1 @@'#10 +
+        '-alpha'#10'\ No newline at end of file'#10'+beta'#10,
+        'Worktree diff reports the updated blob ID without staging the file', PassedTests, TotalTests);
       if not DeleteFile(DiffPath) then
         raise Exception.Create('Failed to remove the worktree diff fixture');
       AssertCliOutput('diff', [], CapturePath,
