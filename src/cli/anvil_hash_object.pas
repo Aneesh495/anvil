@@ -26,34 +26,73 @@ implementation
 function RunCmdHashObject(const Args: TStringArray): Integer;
 var
   Ctx: TRepoContext;
-  WriteObj: Boolean;
-  TypeStr: string;
-  PosArgs: TStringArray;
-  FilePath: string;
+  WriteObj, ParseOptions: Boolean;
+  Arg, TypeStr, FilePath: string;
+  I: Integer;
   Data: TByteArray;
   Blob: TBlobObject;
   CalculatedId: TObjectId;
   HasRepo: Boolean;
 begin
   Result := 1;
-  WriteObj := HasFlag(Args, '-w', '');
-  if not GetOptionValue(Args, '-t', '', TypeStr) then
-    TypeStr := 'blob';
+  WriteObj := False;
+  ParseOptions := True;
+  TypeStr := 'blob';
+  FilePath := '';
+  I := 0;
+  while I < Length(Args) do
+  begin
+    Arg := Args[I];
+    Inc(I);
+    if ParseOptions then
+      case Arg of
+        '-w':
+        begin
+          WriteObj := True;
+          Continue;
+        end;
+        '-t':
+        begin
+          if I = Length(Args) then
+          begin
+            PrintError('fatal: -t requires an object type');
+            Exit;
+          end;
+          TypeStr := Args[I];
+          Inc(I);
+          Continue;
+        end;
+        '--':
+        begin
+          ParseOptions := False;
+          Continue;
+        end;
+      else
+        if (Length(Arg) > 1) and (Arg[1] = '-') then
+        begin
+          PrintError('fatal: unknown hash-object option: ' + Arg);
+          Exit;
+        end;
+      end;
+    if FilePath <> '' then
+    begin
+      PrintError('fatal: hash-object requires exactly one file');
+      Exit;
+    end;
+    FilePath := Arg;
+  end;
   if TypeStr <> 'blob' then
   begin
     PrintError('fatal: hash-object supports only the blob type');
     Exit;
   end;
 
-  PosArgs := GetPositionalArgs(Args);
-
-  if Length(PosArgs) = 0 then
+  if FilePath = '' then
   begin
-    PrintUsage('hash-object', '[-t <type>] [-w] <file>', 'Compute object ID and optionally creates an object from a file');
+    PrintUsage('hash-object', '[-t blob] [-w] [--] <file>', 'Compute an object ID and optionally store the file');
     Exit;
   end;
 
-  FilePath := PosArgs[0];
   if not FileExists(FilePath) then
   begin
     PrintError('fatal: Cannot open ' + FilePath + ': No such file or directory');
