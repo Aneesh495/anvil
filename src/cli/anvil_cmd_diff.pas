@@ -17,7 +17,7 @@ interface
 uses
   SysUtils, Classes,
   anvil_types, anvil_errors, anvil_hash, anvil_object, anvil_odb,
-  anvil_index, anvil_index_entry, anvil_diff_tree, anvil_myers, anvil_patch,
+  anvil_index, anvil_index_entry, anvil_diff_tree, anvil_patch,
   anvil_cli_common, anvil_utils;
 
 function RunCmdDiff(const Args: TStringArray): Integer;
@@ -39,7 +39,6 @@ var
   CommitObj: TCommitObject;
   OldBlobData, NewBlobData: TByteArray;
   OldText, NewText: string;
-  DiffLinesRes: TDiffLineArray;
   PatchGen: TPatchGenerator;
   PatchText: string;
   I: Integer;
@@ -134,16 +133,11 @@ begin
             WorktreeFileText := ReadEntireFileString(JoinPaths(Ctx.RepoRoot, Entry.Path));
             if Ctx.ODB.ReadObjectRaw(Entry.Id, ObjType, OldBlobData) then
             begin
-              if Length(OldBlobData) > 0 then
-                OldText := PChar(@OldBlobData[0])
-              else
-                OldText := '';
+              SetString(OldText, PChar(Pointer(OldBlobData)), Length(OldBlobData));
               NewText := WorktreeFileText;
 
-              DiffLinesRes := MyersDiffStrings(OldText, NewText);
-
               { Check if any modification exists }
-              if Length(DiffLinesRes) > 0 then
+              if OldText <> NewText then
               begin
                 FillChar(Delta, SizeOf(Delta), 0);
                 Delta.OldPath := Entry.Path;
@@ -153,7 +147,7 @@ begin
                 Delta.NewMode := Entry.Mode;
                 Delta.Status := dsModified;
 
-                PatchText := PatchGen.FormatFileDiff(Delta, DiffLinesRes);
+                PatchText := PatchGen.FormatTextDiff(Delta, OldText, NewText);
                 Write(PatchText);
               end;
             end;
@@ -182,18 +176,9 @@ begin
         if not IsNullObjectId(Delta.NewId) then
           Ctx.ODB.ReadObjectRaw(Delta.NewId, ObjType, NewBlobData);
 
-        if Length(OldBlobData) > 0 then
-          OldText := PChar(@OldBlobData[0])
-        else
-          OldText := '';
-
-        if Length(NewBlobData) > 0 then
-          NewText := PChar(@NewBlobData[0])
-        else
-          NewText := '';
-
-        DiffLinesRes := MyersDiffStrings(OldText, NewText);
-        PatchText := PatchGen.FormatFileDiff(Delta, DiffLinesRes);
+        SetString(OldText, PChar(Pointer(OldBlobData)), Length(OldBlobData));
+        SetString(NewText, PChar(Pointer(NewBlobData)), Length(NewBlobData));
+        PatchText := PatchGen.FormatTextDiff(Delta, OldText, NewText);
         Write(PatchText);
       end;
 

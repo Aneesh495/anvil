@@ -82,7 +82,7 @@ const
   BinaryBlob = 'a'#0'b'#$FF#13#10;
 var
   OriginalDir, TestDir, BoundaryDir, SavedIndex: string;
-  BinaryBlobId, EmptyBlobId, ListingTreeId, IncompleteTreeId, TreeListing, CapturePath: string;
+  BinaryBlobId, EmptyBlobId, ListingTreeId, IncompleteTreeId, TreeListing, CapturePath, DiffPath: string;
   BinaryBlobObjectId, EmptyTreeId, MissingTreeId, HeadId: TObjectId;
   Code: Integer;
   Index: TIndex;
@@ -224,6 +224,28 @@ begin
       'rev-list emits nothing with a zero limit', PassedTests, TotalTests);
     AssertCliOutput('log', ['--graph', '--max-count=0'], CapturePath, '',
       'log graph emits nothing with a zero limit', PassedTests, TotalTests);
+    DiffPath := JoinPaths(TestDir, 'diff-fixture.txt');
+    SavedIndex := ReadEntireFileString(JoinPaths(TestDir, '.anvil/index'));
+    try
+      WriteEntireFileString(DiffPath, 'alpha'#10);
+      if RunCli('add', ['diff-fixture.txt']) <> 0 then
+        raise Exception.Create('Failed to stage the diff fixture');
+      AssertCliOutput('diff', ['--cached'], CapturePath,
+        'diff --git a/diff-fixture.txt b/diff-fixture.txt'#10'new file mode 100644'#10 +
+        'index 0000000..4a58007'#10'--- /dev/null'#10'+++ b/diff-fixture.txt'#10'@@ -0,0 +1,1 @@'#10'+alpha'#10,
+        'Staged diff does not insert an extra line after a final newline', PassedTests, TotalTests);
+      WriteEntireFileString(DiffPath, 'alpha');
+      if RunCli('add', ['diff-fixture.txt']) <> 0 then
+        raise Exception.Create('Failed to restage the diff fixture');
+      AssertCliOutput('diff', ['--cached'], CapturePath,
+        'diff --git a/diff-fixture.txt b/diff-fixture.txt'#10'new file mode 100644'#10 +
+        'index 0000000..7e74e68'#10'--- /dev/null'#10'+++ b/diff-fixture.txt'#10'@@ -0,0 +1,1 @@'#10 +
+        '+alpha'#10'\ No newline at end of file'#10,
+        'Staged diff records a missing final newline', PassedTests, TotalTests);
+    finally
+      WriteEntireFileString(JoinPaths(TestDir, '.anvil/index'), SavedIndex);
+      DeleteFile(DiffPath);
+    end;
     AssertCliOutput('cat-file', [BinaryBlobId], CapturePath, BinaryBlob,
       'cat-file raw mode preserves binary blob bytes', PassedTests, TotalTests);
     AssertCliOutput('cat-file', ['-p', BinaryBlobId], CapturePath, BinaryBlob,
