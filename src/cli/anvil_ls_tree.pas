@@ -39,7 +39,8 @@ begin
 
   TreeObj := TTreeObject.Create;
   try
-    TreeObj.Deserialize(@RawData[0], Length(RawData), Algo);
+    if Length(RawData) > 0 then
+      TreeObj.Deserialize(@RawData[0], Length(RawData), Algo);
     for I := 0 to TreeObj.Count - 1 do
     begin
       Entry := TreeObj.GetEntry(I);
@@ -51,14 +52,14 @@ begin
       if Entry.Mode = fmDirectory then
       begin
         if not Recursive or DirsOnly then
-          Writeln(Format('%06o tree %s'#9'%s', [FileModeToOctal(Entry.Mode), ObjectIdToHex(Entry.Id), Path]));
+          PrintTreeEntry(Entry, Path);
 
         if Recursive then
           ListTreeRecursive(ODB, Entry.Id, Path, Recursive, DirsOnly, Algo);
       end
       else if not DirsOnly then
       begin
-        Writeln(Format('%06o blob %s'#9'%s', [FileModeToOctal(Entry.Mode), ObjectIdToHex(Entry.Id), Path]));
+        PrintTreeEntry(Entry, Path);
       end;
     end;
   finally
@@ -97,7 +98,8 @@ begin
       Exit;
     end;
 
-    if not Ctx.ODB.ReadObjectRaw(TargetId, ObjType, RawData) then
+    if not Ctx.ODB.ReadObjectRaw(TargetId, ObjType, RawData) or
+       not (ObjType in [otTree, otCommit]) then
     begin
       PrintError('fatal: not a tree-ish: ' + TargetRev);
       Exit;
