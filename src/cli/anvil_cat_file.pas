@@ -52,7 +52,7 @@ end;
 function RunCmdCatFile(const Args: TStringArray): Integer;
 var
   Ctx: TRepoContext;
-  ShowType, ShowSize, PrettyPrint: Boolean;
+  ShowType, ShowSize, PrettyPrint, ExistsOnly: Boolean;
   TargetRev: string;
   TargetId: TObjectId;
   RawData: TByteArray;
@@ -69,18 +69,24 @@ begin
     ShowType := HasFlag(Args, '-t', '');
     ShowSize := HasFlag(Args, '-s', '');
     PrettyPrint := HasFlag(Args, '-p', '');
+    ExistsOnly := HasFlag(Args, '-e', '');
 
     { These mode flags do not consume an option value. }
     PosArgs := nil;
     for I := 0 to High(Args) do
-      if (Args[I] <> '-t') and (Args[I] <> '-s') and (Args[I] <> '-p') then
+      if (Args[I] <> '-t') and (Args[I] <> '-s') and (Args[I] <> '-p') and (Args[I] <> '-e') then
       begin
         SetLength(PosArgs, Length(PosArgs) + 1);
         PosArgs[High(PosArgs)] := Args[I];
       end;
     if Length(PosArgs) = 0 then
     begin
-      PrintUsage('cat-file', '(-t | -s | -p) <object>', 'Provide content or type/size information for repository objects');
+      PrintUsage('cat-file', '[-t | -s | -p | -e] <object>', 'Inspect a repository object');
+      Exit;
+    end;
+    if ExistsOnly and (ShowType or ShowSize or PrettyPrint or (Length(PosArgs) <> 1)) then
+    begin
+      PrintError('fatal: use cat-file -e with exactly one object and no other mode');
       Exit;
     end;
 
@@ -93,9 +99,12 @@ begin
 
     if not Ctx.ODB.ReadObjectRaw(TargetId, ObjType, RawData) then
     begin
-      PrintError('fatal: git cat-file ' + TargetRev + ': bad object');
+      if not ExistsOnly then
+        PrintError('fatal: git cat-file ' + TargetRev + ': bad object');
       Exit;
     end;
+    if ExistsOnly then
+      Exit(0);
 
     if ShowType then
     begin
