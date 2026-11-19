@@ -17,7 +17,7 @@ interface
 uses
   SysUtils, Classes,
   anvil_types, anvil_errors, anvil_cli_router, anvil_utils,
-  anvil_hash, anvil_index, anvil_index_entry, anvil_odb, anvil_ref;
+  anvil_hash, anvil_index, anvil_index_entry, anvil_object, anvil_odb, anvil_ref;
 
 procedure RunCliWorkflowTests(var PassedTests, TotalTests: Integer);
 
@@ -58,7 +58,7 @@ begin
   Result := DispatchCliCommand(Cmd, ArgsArr);
 end;
 
-procedure AssertCatFileOutput(const Args: array of string; const CapturePath,
+procedure AssertCliOutput(const Cmd: string; const Args: array of string; const CapturePath,
   Expected, Msg: string; var PassedTests, TotalTests: Integer);
 var
   Code: Integer;
@@ -67,7 +67,7 @@ begin
   Assign(Output, CapturePath);
   Rewrite(Output);
   try
-    Code := RunCli('cat-file', Args);
+    Code := RunCli(Cmd, Args);
   finally
     Close(Output);
     Assign(Output, '');
@@ -82,11 +82,13 @@ const
   BinaryBlob = 'a'#0'b'#$FF#13#10;
 var
   OriginalDir, TestDir, BoundaryDir, SavedIndex: string;
-  BinaryBlobId, EmptyBlobId, CapturePath: string;
+  BinaryBlobId, EmptyBlobId, ListingTreeId, TreeListing, CapturePath: string;
+  BinaryBlobObjectId, EmptyTreeId, HeadId: TObjectId;
   Code: Integer;
   Index: TIndex;
   Odb: TObjectDatabase;
   RefMgr: TRefManager;
+  Tree: TTreeObject;
   Entry: TIndexEntry;
 begin
   Writeln('=== Running End-to-End CLI Integration Workflow ===');
@@ -182,18 +184,46 @@ begin
     AssertEquals(0, RunCli('cat-file', ['-p', 'HEAD']), 'cat-file pretty mode retains its object argument', PassedTests, TotalTests);
     Odb := TObjectDatabase.Create(JoinPaths(TestDir, '.anvil/objects'));
     try
-      BinaryBlobId := ObjectIdToHex(Odb.WriteObjectRaw(otBlob, PChar(BinaryBlob), Length(BinaryBlob)));
+      BinaryBlobObjectId := Odb.WriteObjectRaw(otBlob, PChar(BinaryBlob), Length(BinaryBlob));
+      BinaryBlobId := ObjectIdToHex(BinaryBlobObjectId);
       EmptyBlobId := ObjectIdToHex(Odb.WriteObjectRaw(otBlob, nil, 0));
+      EmptyTreeId := Odb.WriteObjectRaw(otTree, nil, 0);
+      RefMgr := TRefManager.Create(JoinPaths(TestDir, '.anvil'));
+      try
+        if not RefMgr.Resolve('HEAD', HeadId) then
+          raise Exception.Create('Failed to resolve test repository HEAD');
+      finally
+        RefMgr.Free;
+      end;
+      Tree := TTreeObject.Create;
+      try
+        Tree.AddEntry(fmDirectory, 'empty', EmptyTreeId);
+        Tree.AddEntry(fmRegular, 'payload.bin', BinaryBlobObjectId);
+        Tree.AddEntry(fmGitLink, 'submodule', HeadId);
+        ListingTreeId := ObjectIdToHex(Odb.WriteObject(Tree));
+      finally
+        Tree.Free;
+      end;
     finally
       Odb.Free;
     end;
-    CapturePath := JoinPaths(TestDir, '.anvil/cat-file-test-output');
-    AssertCatFileOutput([BinaryBlobId], CapturePath, BinaryBlob,
+    CapturePath := JoinPaths(TestDir, '.anvil/cli-test-output');
+    AssertCliOutput('cat-file', [BinaryBlobId], CapturePath, BinaryBlob,
       'cat-file raw mode preserves binary blob bytes', PassedTests, TotalTests);
-    AssertCatFileOutput(['-p', BinaryBlobId], CapturePath, BinaryBlob,
+    AssertCliOutput('cat-file', ['-p', BinaryBlobId], CapturePath, BinaryBlob,
       'cat-file pretty mode preserves binary blob bytes', PassedTests, TotalTests);
-    AssertCatFileOutput(['-p', EmptyBlobId], CapturePath, '',
+    AssertCliOutput('cat-file', ['-p', EmptyBlobId], CapturePath, '',
       'cat-file pretty mode emits zero bytes for an empty blob', PassedTests, TotalTests);
+
+    AssertEquals(1, RunCli('ls-tree', [BinaryBlobId]), 'ls-tree rejects a blob as a non-tree object', PassedTests, TotalTests);
+    AssertEquals(0, RunCli('ls-tree', ['HEAD']), 'ls-tree accepts a commit', PassedTests, TotalTests);
+    TreeListing := '040000 tree ' + ObjectIdToHex(EmptyTreeId) + #9'empty' + LineEnding +
+      '100644 blob ' + BinaryBlobId + #9'payload.bin' + LineEnding +
+      '160000 commit ' + ObjectIdToHex(HeadId) + #9'submodule' + LineEnding;
+    AssertCliOutput('ls-tree', [ListingTreeId], CapturePath, TreeListing,
+      'ls-tree prints Git-compatible tree entries', PassedTests, TotalTests);
+    AssertCliOutput('cat-file', ['-p', ListingTreeId], CapturePath, TreeListing,
+      'cat-file pretty mode prints Git-compatible tree entries', PassedTests, TotalTests);
     DeleteFile(CapturePath);
 
     { 12. anvil tag v1.0.0 }
