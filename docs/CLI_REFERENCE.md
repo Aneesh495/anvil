@@ -28,6 +28,7 @@ Displays working tree status, staged changes, unstaged modifications, untracked 
 ### `anvil add <path>...`
 Stages file modifications into the directory cache (`.anvil/index`):
 - `.` or `path`: Adds specified file or recursively adds matching directory contents.
+- Naming a tracked file that has been removed from disk stages its deletion.
 - Automatically resolves merge conflict stages into Stage 0 if resolved.
 
 ### `anvil rm [-f] [--cached] <path>...`
