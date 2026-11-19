@@ -68,9 +68,17 @@ begin
       I := 0;
       while I < Length(Args) do
       begin
-        if (Args[I] = '-p') and (I + 1 < Length(Args)) then
+        if Args[I] = '-m' then
+          Inc(I)
+        else if Args[I] = '-p' then
         begin
-          ParentStr := Args[I + 1];
+          Inc(I);
+          if I = Length(Args) then
+          begin
+            PrintError('fatal: -p requires a parent revision');
+            Exit;
+          end;
+          ParentStr := Args[I];
           if ResolveRevision(Ctx, ParentStr, ParentId) and
              Ctx.ODB.ReadObjectRaw(ParentId, ObjType, RawData) and (ObjType = otCommit) then
             CommitObj.AddParent(ParentId)
@@ -79,8 +87,6 @@ begin
             PrintError('fatal: not a valid parent commit: ' + ParentStr);
             Exit;
           end;
-          Inc(I, 2);
-          Continue;
         end;
         Inc(I);
       end;
