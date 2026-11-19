@@ -31,7 +31,8 @@ var
   EmittedCount: Integer;
   CommitId: TObjectId;
   Revisions: TStringArray;
-  Arg: string;
+  Arg, Revision: string;
+  Exclude: Boolean;
   IncludeIds, ExcludeIds: TObjectIdArray;
   TargetId: TObjectId;
 begin
@@ -57,12 +58,20 @@ begin
         end
         else
         begin
-          if not ResolveRevision(Ctx, Arg, TargetId, True) then
+          Exclude := (Length(Arg) > 0) and (Arg[1] = '^');
+          if Exclude then
+            Revision := Copy(Arg, 2, Length(Arg) - 1)
+          else
+            Revision := Arg;
+          if (Revision = '') or not ResolveRevision(Ctx, Revision, TargetId, True) then
           begin
             PrintError('fatal: invalid revision: ' + Arg);
             Exit;
           end;
-          Walker.Push(TargetId);
+          if Exclude then
+            Walker.Hide(TargetId)
+          else
+            Walker.Push(TargetId);
         end;
       end;
 
