@@ -61,6 +61,7 @@ var
   IdA, IdB, IdC, TreeIdA, TreeIdB: TObjectId;
   TreeDiffObj: TTreeDiff;
   Deltas, RenamedDeltas: TTreeDeltaArray;
+  Delta: TTreeDelta;
   RenameDetector: TRenameDetector;
   PatchGen: TPatchGenerator;
   I, InsCount, DelCount, KeepCount: Integer;
@@ -167,6 +168,36 @@ begin
           AssertTrue(Pos('@@ -', PatchText) > 0, 'Patch contains unified diff hunk header', PassedTests, TotalTests);
           AssertTrue(Pos('+blueberry', PatchText) > 0, 'Patch contains inserted line +blueberry', PassedTests, TotalTests);
           AssertTrue(Pos('-banana', PatchText) > 0, 'Patch contains deleted line -banana', PassedTests, TotalTests);
+
+          for Delta in Deltas do
+            case Delta.Status of
+              dsAdded:
+              begin
+                PatchText := PatchGen.FormatFileDiff(Delta, MyersDiffStrings('', 'beta content'));
+                AssertTrue(Pos('diff --git a/file3.txt b/file3.txt'#10'new file mode 100644'#10, PatchText) = 1,
+                  'Added file patch uses the new path and mode', PassedTests, TotalTests);
+                AssertTrue(Pos('--- /dev/null'#10'+++ b/file3.txt'#10, PatchText) > 0,
+                  'Added file patch has no old file', PassedTests, TotalTests);
+              end;
+              dsDeleted:
+              begin
+                PatchText := PatchGen.FormatFileDiff(Delta, MyersDiffStrings('beta content', ''));
+                AssertTrue(Pos('diff --git a/file2.txt b/file2.txt'#10'deleted file mode 100644'#10, PatchText) = 1,
+                  'Deleted file patch uses the old path and mode', PassedTests, TotalTests);
+                AssertTrue(Pos('--- a/file2.txt'#10'+++ /dev/null'#10, PatchText) > 0,
+                  'Deleted file patch has no new file', PassedTests, TotalTests);
+              end;
+            end;
+
+          Delta := Default(TTreeDelta);
+          Delta.NewPath := 'empty.txt';
+          Delta.OldId := NullObjectId(haSHA1);
+          Delta.NewId := Odb.WriteObjectRaw(otBlob, nil, 0);
+          Delta.NewMode := fmRegular;
+          Delta.Status := dsAdded;
+          AssertEquals('diff --git a/empty.txt b/empty.txt'#10'new file mode 100644'#10'index 0000000..e69de29'#10,
+            PatchGen.FormatFileDiff(Delta, nil), 'Empty file addition produces a metadata-only patch',
+            PassedTests, TotalTests);
         finally
           PatchGen.Free;
         end;
