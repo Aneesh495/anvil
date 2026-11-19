@@ -23,9 +23,9 @@ function RunCmdLsTree(const Args: TStringArray): Integer;
 
 implementation
 
-procedure ListTreeRecursive(ODB: TObjectDatabase; const TreeId: TObjectId;
+function ListTreeRecursive(ODB: TObjectDatabase; const TreeId: TObjectId;
                             const Prefix: string; Recursive, DirsOnly: Boolean;
-                            Algo: THashAlgorithm);
+                            Algo: THashAlgorithm): Boolean;
 var
   RawData: TByteArray;
   ObjType: TObjectType;
@@ -35,7 +35,10 @@ var
   Path: string;
 begin
   if not ODB.ReadObjectRaw(TreeId, ObjType, RawData) or (ObjType <> otTree) then
-    Exit;
+  begin
+    PrintError('fatal: cannot read tree ' + ObjectIdToHex(TreeId));
+    Exit(False);
+  end;
 
   TreeObj := TTreeObject.Create;
   try
@@ -54,8 +57,8 @@ begin
         if not Recursive or DirsOnly then
           PrintTreeEntry(Entry, Path);
 
-        if Recursive then
-          ListTreeRecursive(ODB, Entry.Id, Path, Recursive, DirsOnly, Algo);
+        if Recursive and not ListTreeRecursive(ODB, Entry.Id, Path, Recursive, DirsOnly, Algo) then
+          Exit(False);
       end
       else if not DirsOnly then
       begin
@@ -65,6 +68,7 @@ begin
   finally
     TreeObj.Free;
   end;
+  Result := True;
 end;
 
 function RunCmdLsTree(const Args: TStringArray): Integer;
@@ -117,8 +121,8 @@ begin
       end;
     end;
 
-    ListTreeRecursive(Ctx.ODB, TreeId, '', Recursive, DirsOnly, Ctx.Algo);
-    Result := 0;
+    if ListTreeRecursive(Ctx.ODB, TreeId, '', Recursive, DirsOnly, Ctx.Algo) then
+      Result := 0;
 
   finally
     CloseRepoContext(Ctx);
