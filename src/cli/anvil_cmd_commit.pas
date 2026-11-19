@@ -57,13 +57,12 @@ begin
       Exit;
     end;
 
-    if Ctx.Index.Count = 0 then
+    HasHead := Ctx.RefMgr.Resolve('HEAD', HeadCommitId);
+    if not HasHead and (Ctx.Index.Count = 0) then
     begin
       PrintError('fatal: nothing added to commit but untracked files present');
       Exit;
     end;
-
-    HasHead := Ctx.RefMgr.Resolve('HEAD', HeadCommitId);
 
     { Write current staging index to a root tree }
     TreeId := Ctx.Index.WriteTree(Ctx.ODB);
