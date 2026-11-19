@@ -23,15 +23,68 @@ function RunCmdRevParse(const Args: TStringArray): Integer;
 
 implementation
 
+function VerifySingleRevision(const Ctx: TRepoContext; const Args: TStringArray; Quiet: Boolean): Integer;
+var
+  Arg: string;
+  Id: TObjectId;
+  HasRevision, EndOfOptions: Boolean;
+begin
+  HasRevision := False;
+  EndOfOptions := False;
+  for Arg in Args do
+  begin
+    if Arg = '--' then Break;
+    if not EndOfOptions and (Length(Arg) > 0) and (Arg[1] = '-') then
+    begin
+      if Arg = '--end-of-options' then
+        EndOfOptions := True;
+      Continue;
+    end;
+    if HasRevision or not ResolveRevision(Ctx, Arg, Id) then
+    begin
+      HasRevision := False;
+      Break;
+    end;
+    HasRevision := True;
+  end;
+
+  if not HasRevision then
+  begin
+    if not Quiet then
+      PrintError('fatal: Needed a single revision');
+    Exit(1);
+  end;
+  Writeln(ObjectIdToHex(Id));
+  Result := 0;
+end;
+
 function RunCmdRevParse(const Args: TStringArray): Integer;
 var
   Ctx: TRepoContext;
   I: Integer;
   Arg: string;
   ResolvedId: TObjectId;
-  AllSuccess: Boolean;
+  AllSuccess, Verify, Quiet: Boolean;
 begin
   Result := 1;
+  Verify := False;
+  Quiet := False;
+  for Arg in Args do
+  begin
+    if (Arg = '--') or (Arg = '--end-of-options') then Break;
+    if Arg = '--verify' then Verify := True;
+    if (Arg = '-q') or (Arg = '--quiet') then Quiet := True;
+  end;
+  if Verify then
+  begin
+    if not OpenRepoContext(Ctx) then Exit;
+    try
+      Exit(VerifySingleRevision(Ctx, Args, Quiet));
+    finally
+      CloseRepoContext(Ctx);
+    end;
+  end;
+
   if HasFlag(Args, '', '--git-dir') then
   begin
     if OpenRepoContext(Ctx, True) then
