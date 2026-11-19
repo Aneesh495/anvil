@@ -185,6 +185,19 @@ begin
 
       { Restore file2.txt }
       WriteEntireFileString(JoinPaths(TestDir, 'file2.txt'), 'content two'#10);
+
+      Index.RemoveAllStages('file1.txt');
+      Index.AddFile('file1.txt', Blob1.ObjectId, fmRegular, 12, 1);
+      Index.AddFile('file1.txt', Blob2.ObjectId, fmRegular, 12, 2);
+      Index.RemoveAllStages('file2.txt');
+      Status := Scanner.ComputeStatus(TreeId1);
+      AssertTrue(Status.HasConflicts and (Length(Status.ConflictedFiles) = 1) and
+        (Status.ConflictedFiles[0] = 'file1.txt'), 'Status reports the unmerged path', PassedTests, TotalTests);
+      AssertTrue((Length(Status.StagedDeleted) = 1) and (Status.StagedDeleted[0] = 'file2.txt'),
+        'Status reports only the actual staged deletion alongside a conflict', PassedTests, TotalTests);
+      Index.RemoveAllStages('file1.txt');
+      Index.AddFile('file1.txt', Blob1.ObjectId, fmRegular, 12);
+      Index.AddFile('file2.txt', Blob2.ObjectId, fmRegular, 12);
     finally
       Scanner.Free;
     end;

@@ -271,9 +271,6 @@ begin
   for I := 0 to FIndex.Count - 1 do
   begin
     Entry := FIndex.GetEntry(I);
-    if Entry.Stage <> 0 then
-      Continue; { Skip conflict stages in regular status }
-
     FoundHead := False;
     for J := 0 to HeadCount - 1 do
     begin
@@ -281,7 +278,7 @@ begin
       begin
         FoundHead := True;
         HeadSeen[J] := True;
-        if not ObjectIdEqual(HeadEntries[J].Id, Entry.Id) then
+        if (Entry.Stage = 0) and not ObjectIdEqual(HeadEntries[J].Id, Entry.Id) then
         begin
           SetLength(Result.StagedModified, Length(Result.StagedModified) + 1);
           Result.StagedModified[Length(Result.StagedModified) - 1] := Entry.Path;
@@ -290,7 +287,7 @@ begin
       end;
     end;
 
-    if not FoundHead then
+    if not FoundHead and (Entry.Stage = 0) then
     begin
       SetLength(Result.StagedNew, Length(Result.StagedNew) + 1);
       Result.StagedNew[Length(Result.StagedNew) - 1] := Entry.Path;
