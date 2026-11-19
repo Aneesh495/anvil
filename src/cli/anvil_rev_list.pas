@@ -27,7 +27,6 @@ function RunCmdRevList(const Args: TStringArray): Integer;
 var
   Ctx: TRepoContext;
   Walker: TCommitWalker;
-  CountStr: string;
   MaxCount: Integer;
   EmittedCount: Integer;
   CommitId: TObjectId;
@@ -39,9 +38,7 @@ begin
   Result := 1;
   if not OpenRepoContext(Ctx) then Exit;
   try
-    MaxCount := MaxInt;
-    if GetOptionValue(Args, '-n', '--max-count', CountStr) then
-      MaxCount := StrToIntDef(CountStr, MaxInt);
+    if not ParseCommitLimit(Args, MaxCount) then Exit;
 
     Revisions := GetPositionalArgs(Args);
     Walker := TCommitWalker.Create(Ctx.ODB, csoTopological);

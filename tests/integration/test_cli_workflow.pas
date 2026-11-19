@@ -175,8 +175,10 @@ begin
     Code := RunCli('log', ['--oneline']);
     AssertEquals(0, Code, 'anvil log --oneline succeeds', PassedTests, TotalTests);
     AssertEquals(0, RunCli('log', ['--oneline', '--max-count', '1']), 'Long max-count value is not treated as the log revision', PassedTests, TotalTests);
+    AssertEquals(1, RunCli('log', ['--max-count']), 'log requires a commit limit value', PassedTests, TotalTests);
 
     AssertEquals(0, RunCli('rev-list', ['--max-count', '1']), 'rev-list accepts the separated count option with default HEAD', PassedTests, TotalTests);
+    AssertEquals(1, RunCli('rev-list', ['--max-count=invalid']), 'rev-list rejects an invalid commit limit', PassedTests, TotalTests);
     AssertEquals(1, RunCli('rev-list', ['missing-revision']), 'rev-list rejects an unresolved explicit revision', PassedTests, TotalTests);
     AssertEquals(1, RunCli('rev-list', ['missing-revision..HEAD']), 'rev-list rejects an unresolved explicit range', PassedTests, TotalTests);
 
@@ -208,6 +210,12 @@ begin
       Odb.Free;
     end;
     CapturePath := JoinPaths(TestDir, '.anvil/cli-test-output');
+    AssertCliOutput('rev-list', ['-n', '-1', 'HEAD~1..HEAD'], CapturePath,
+      ObjectIdToHex(HeadId) + LineEnding, 'rev-list treats a negative limit as unlimited', PassedTests, TotalTests);
+    AssertCliOutput('rev-list', ['--max-count=0'], CapturePath, '',
+      'rev-list emits nothing with a zero limit', PassedTests, TotalTests);
+    AssertCliOutput('log', ['--graph', '--max-count=0'], CapturePath, '',
+      'log graph emits nothing with a zero limit', PassedTests, TotalTests);
     AssertCliOutput('cat-file', [BinaryBlobId], CapturePath, BinaryBlob,
       'cat-file raw mode preserves binary blob bytes', PassedTests, TotalTests);
     AssertCliOutput('cat-file', ['-p', BinaryBlobId], CapturePath, BinaryBlob,
