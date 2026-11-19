@@ -55,11 +55,12 @@ procedure RunIndexTests(var PassedTests, TotalTests: Integer);
 var
   TestDir, ObjectsDir, IndexPath: string;
   Idx: TIndex;
-  Id1, Id2, Id3, RootTreeId: TObjectId;
+  Id1, Id2, Id3, RootTreeId, IncompleteTreeId: TObjectId;
   Entry: TIndexEntry;
   Odb: TObjectDatabase;
   TreeObj: TTreeObject;
   TreeEntry: TTreeEntry;
+  MissingTreeReported: Boolean;
 begin
   Writeln('=== Running Staging Area (Index) Test Suite ===');
 
@@ -145,6 +146,26 @@ begin
         Idx.ReadTree(Odb, RootTreeId);
         AssertTrue(Idx.Count = 4, 'read-tree populated all 4 leaf entries recursively', PassedTests, TotalTests);
         AssertTrue(Idx.Find('src/common/types.pas', 0, Entry), 'Expanded nested entry src/common/types.pas', PassedTests, TotalTests);
+
+        TreeObj := TTreeObject.Create;
+        try
+          TreeObj.AddEntry(fmRegular, 'new.txt', Id1);
+          TreeObj.AddEntry(fmDirectory, 'unavailable', HexToObjectId(StringOfChar('1', 40)));
+          IncompleteTreeId := Odb.WriteObject(TreeObj);
+        finally
+          TreeObj.Free;
+        end;
+        MissingTreeReported := False;
+        try
+          Idx.ReadTree(Odb, IncompleteTreeId);
+        except
+          on E: EObjectNotFound do
+            MissingTreeReported := True;
+        end;
+        AssertTrue(MissingTreeReported, 'read-tree reports an unavailable directory tree', PassedTests, TotalTests);
+        AssertTrue((Idx.Count = 4) and Idx.Find('src/common/types.pas', 0, Entry) and
+          ObjectIdEqual(Entry.Id, Id3), 'failed read-tree preserves the previous index', PassedTests, TotalTests);
+        AssertTrue(not Idx.Find('new.txt', 0, Entry), 'failed read-tree discards partially loaded entries', PassedTests, TotalTests);
 
       finally
         Odb.Free;

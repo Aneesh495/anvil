@@ -538,13 +538,18 @@ end;
 
 procedure TIndex.ReadSubtree(Odb: TObjectDatabase; const TreeId: TObjectId; const PathPrefix: string);
 var
+  Obj: TAnvilObject;
   Tree: TTreeObject;
   Entry: TTreeEntry;
   I: Integer;
   FullPath: string;
 begin
-  Tree := TTreeObject(Odb.ReadObject(TreeId));
+  Obj := Odb.ReadObject(TreeId);
   try
+    if not (Obj is TTreeObject) then
+      raise ECorruptObject.CreateWithCode(ERR_CORRUPT_OBJECT,
+        'Expected tree object: ' + ObjectIdToHex(TreeId));
+    Tree := TTreeObject(Obj);
     for I := 0 to Tree.Count - 1 do
     begin
       Entry := Tree.GetEntry(I);
@@ -556,15 +561,25 @@ begin
         AddFile(FullPath, Entry.Id, Entry.Mode, 0, 0);
     end;
   finally
-    Tree.Free;
+    Obj.Free;
   end;
 end;
 
 procedure TIndex.ReadTree(Odb: TObjectDatabase; const RootTreeId: TObjectId);
+var
+  Loaded: TIndex;
 begin
-  Clear;
-  ReadSubtree(Odb, RootTreeId, '');
-  SortEntries;
+  { Expand the complete tree before replacing the current staging index. }
+  Loaded := TIndex.Create('', FAlgo);
+  try
+    Loaded.ReadSubtree(Odb, RootTreeId, '');
+    Loaded.SortEntries;
+    FEntries := Loaded.FEntries;
+    FCount := Loaded.FCount;
+    FCacheTree.Invalidate;
+  finally
+    Loaded.Free;
+  end;
 end;
 
 end.
