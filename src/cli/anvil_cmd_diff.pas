@@ -147,6 +147,7 @@ begin
             if OldText = NewText then
               Continue;
             Delta.NewPath := Entry.Path;
+            Delta.NewId := HashGitObject(otBlob, Pointer(NewText), Length(NewText), Ctx.Algo);
             Delta.NewMode := Entry.Mode;
             Delta.Status := dsModified;
           end
