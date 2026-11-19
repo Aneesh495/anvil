@@ -512,6 +512,22 @@ begin
     CapturePath := JoinPaths(BoundaryDir, '.anvil/last-file-test-output');
     AssertCliOutput('ls-tree', ['HEAD'], CapturePath, '',
       'The deletion commit records an empty tree', PassedTests, TotalTests);
+    WriteEntireFileString(JoinPaths(BoundaryDir, 'inside.txt'), 'another tracked file'#10);
+    AssertEquals(0, RunCli('add', ['inside.txt']), 'Stage a file for explicit deletion coverage', PassedTests, TotalTests);
+    AssertEquals(0, RunCli('commit', ['-m', 'restore the file']), 'Track the explicit deletion fixture', PassedTests, TotalTests);
+    if not DeleteFile(JoinPaths(BoundaryDir, 'inside.txt')) then
+      raise Exception.Create('Could not delete the explicit add fixture');
+    AssertEquals(0, RunCli('add', ['inside.txt']), 'An explicitly named missing tracked file stages its deletion',
+      PassedTests, TotalTests);
+    Index := TIndex.Create(JoinPaths(BoundaryDir, '.anvil/index'));
+    try
+      AssertTrue(not Index.FindAny('inside.txt', Entry), 'Staging the deletion removes the index entry',
+        PassedTests, TotalTests);
+    finally
+      Index.Free;
+    end;
+    AssertEquals(1, RunCli('add', ['never-tracked.txt']), 'An untracked missing path still reports an error',
+      PassedTests, TotalTests);
 
   finally
     SetCurrentDir(OriginalDir);
