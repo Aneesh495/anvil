@@ -70,7 +70,6 @@ function MatchesWorkingFile(const FullPath: string; const Entry: TIndexEntry; Al
 var
   Content: TFileStream;
 begin
-  if not FileExists(FullPath) then Exit(True);
   Content := TFileStream.Create(FullPath, fmOpenRead or fmShareDenyNone);
   try
     Result := ObjectIdEqual(HashGitObjectStream(otBlob, Content, Content.Size, Algo), Entry.Id);
@@ -82,7 +81,7 @@ end;
 function RunCmdRm(const Args: TStringArray): Integer;
 var
   Ctx: TRepoContext;
-  CachedOnly, CheckLocalChanges: Boolean;
+  CachedOnly, CheckLocalChanges, HeadMatches, FilePresent, CanRemove: Boolean;
   PosArgs, FullPaths, RelPaths: TStringArray;
   I: Integer;
   TargetArg, RelPath, FullPath: string;
@@ -94,7 +93,7 @@ begin
   if not OpenRepoContext(Ctx) then Exit;
   try
     CachedOnly := HasFlag(Args, '', '--cached');
-    CheckLocalChanges := not CachedOnly and not HasFlag(Args, '-f', '--force');
+    CheckLocalChanges := not HasFlag(Args, '-f', '--force');
     PosArgs := GetPositionalArgs(Args);
 
     if Length(PosArgs) = 0 then
@@ -122,11 +121,19 @@ begin
         PrintError('fatal: pathspec ''' + TargetArg + ''' did not match any files');
         Exit;
       end;
-      if CheckLocalChanges and
-         (not MatchesHead(Ctx.ODB, HeadTree, Entry) or not MatchesWorkingFile(FullPath, Entry, Ctx.Algo)) then
+      if CheckLocalChanges then
       begin
-        PrintError('fatal: pathspec ''' + TargetArg + ''' has local changes. Use -f to force removal.');
-        Exit;
+        HeadMatches := MatchesHead(Ctx.ODB, HeadTree, Entry);
+        FilePresent := FileExists(FullPath);
+        if CachedOnly then
+          CanRemove := HeadMatches or (FilePresent and MatchesWorkingFile(FullPath, Entry, Ctx.Algo))
+        else
+          CanRemove := HeadMatches and (not FilePresent or MatchesWorkingFile(FullPath, Entry, Ctx.Algo));
+        if not CanRemove then
+        begin
+          PrintError('fatal: pathspec ''' + TargetArg + ''' has local changes. Use -f to force removal.');
+          Exit;
+        end;
       end;
 
       FullPaths[I] := FullPath;
