@@ -141,3 +141,5 @@ Resolves references, object IDs, ancestor expressions such as `main~2` and `HEAD
 
 ### `anvil rev-list [--topo-order] [--max-count=N] [<revision>...]`
 Lists commit IDs in topological order from the supplied revisions or ranges. When no revision is supplied, the walk starts at `HEAD`. An unresolved revision or range exits with an error.
+
+Use `A...B` to list commits reachable from either side after excluding their shared history.
