@@ -50,7 +50,8 @@ begin
       Exit;
     end;
 
-    if not Ctx.ODB.ReadObjectRaw(TargetId, ObjType, RawData) then
+    if not Ctx.ODB.ReadObjectRaw(TargetId, ObjType, RawData) or
+       not (ObjType in [otTree, otCommit]) then
     begin
       PrintError('fatal: not a tree-ish: ' + TargetRev);
       Exit;
