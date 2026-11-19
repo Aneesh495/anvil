@@ -38,6 +38,7 @@ var
   CommitObj: TCommitObject;
   ShortSha: string;
   FirstLineMsg: string;
+  MessageLines: TStringArray;
   DateStr: string;
   Renderer: TGraphRenderer;
   GraphLines: TGraphLineArray;
@@ -118,7 +119,14 @@ begin
             DateStr := FormatDateTimeGit(CommitObj.Author.When.Seconds, CommitObj.Author.When.OffsetMinutes);
             Writeln('Date:   ', DateStr);
             Writeln;
-            Writeln('    ', FirstLineMsg);
+            MessageLines := SplitStringByChar(CommitObj.Message, #10);
+            if (Length(MessageLines) > 0) and (MessageLines[High(MessageLines)] = '') then
+              SetLength(MessageLines, Length(MessageLines) - 1);
+            for I := 0 to High(MessageLines) do
+              if MessageLines[I] = '' then
+                Writeln
+              else
+                Writeln('    ', MessageLines[I]);
           end;
 
           Inc(CommitCount);

@@ -58,10 +58,8 @@ begin
   Result := DispatchCliCommand(Cmd, ArgsArr);
 end;
 
-procedure AssertCliOutput(const Cmd: string; const Args: array of string; const CapturePath,
-  Expected, Msg: string; var PassedTests, TotalTests: Integer; ExpectedCode: Integer = 0);
-var
-  Code: Integer;
+function CaptureCliOutput(const Cmd: string; const Args: array of string;
+  const CapturePath: string; out Code: Integer): string;
 begin
   Flush(Output);
   Assign(Output, CapturePath);
@@ -73,8 +71,17 @@ begin
     Assign(Output, '');
     Rewrite(Output);
   end;
-  AssertTrue((Code = ExpectedCode) and (ReadEntireFileString(CapturePath) = Expected),
-    Msg, PassedTests, TotalTests);
+  Result := ReadEntireFileString(CapturePath);
+end;
+
+procedure AssertCliOutput(const Cmd: string; const Args: array of string; const CapturePath,
+  Expected, Msg: string; var PassedTests, TotalTests: Integer; ExpectedCode: Integer = 0);
+var
+  Code: Integer;
+  Actual: string;
+begin
+  Actual := CaptureCliOutput(Cmd, Args, CapturePath, Code);
+  AssertTrue((Code = ExpectedCode) and (Actual = Expected), Msg, PassedTests, TotalTests);
 end;
 
 procedure RunCliWorkflowTests(var PassedTests, TotalTests: Integer);
@@ -83,7 +90,7 @@ const
   IgnoredUpdate = 'after'#10;
 var
   OriginalDir, TestDir, BoundaryDir, SavedIndex, SavedMath, StagedIndex, CommitBefore: string;
-  BinaryBlobId, EmptyBlobId, ListingTreeId, IncompleteTreeId, TreeListing, CapturePath, DiffPath, DiffIndex: string;
+  BinaryBlobId, EmptyBlobId, ListingTreeId, IncompleteTreeId, TreeListing, CapturePath, DiffPath, DiffIndex, LogOutput: string;
   BinaryBlobObjectId, EmptyTreeId, MissingTreeId, HeadId: TObjectId;
   Code: Integer;
   Index: TIndex;
@@ -243,7 +250,7 @@ begin
     Code := RunCli('add', ['utils.pas']);
     AssertEquals(0, Code, 'anvil add utils.pas in feature branch', PassedTests, TotalTests);
 
-    Code := RunCli('commit', ['-m', 'feat(utils): add logger utility']);
+    Code := RunCli('commit', ['-m', 'feat(utils): add logger utility'#10#10'Keep diagnostics in one place.'#10'Preserve the original line order.']);
     AssertEquals(0, Code, 'anvil commit in feature branch succeeds', PassedTests, TotalTests);
     AssertEquals(0, RunCli('branch', ['deletion-fixture']),
       'Create a second reference to the unmerged work', PassedTests, TotalTests);
@@ -271,6 +278,15 @@ begin
     { 11. anvil log }
     Code := RunCli('log', ['--oneline']);
     AssertEquals(0, Code, 'anvil log --oneline succeeds', PassedTests, TotalTests);
+    CapturePath := JoinPaths(TestDir, '.anvil/cli-test-output');
+    LogOutput := CaptureCliOutput('log', ['--max-count=1'], CapturePath, Code);
+    AssertTrue((Code = 0) and (Pos('    feat(utils): add logger utility' + LineEnding + LineEnding +
+      '    Keep diagnostics in one place.' + LineEnding + '    Preserve the original line order.' + LineEnding,
+      LogOutput) > 0), 'Default log includes all message lines and the paragraph break', PassedTests, TotalTests);
+    LogOutput := CaptureCliOutput('log', ['--oneline', '--max-count=1'], CapturePath, Code);
+    AssertTrue((Code = 0) and (Pos('feat(utils): add logger utility' + LineEnding, LogOutput) > 0) and
+      (Pos('Keep diagnostics in one place.', LogOutput) = 0), 'One-line log still prints only the subject',
+      PassedTests, TotalTests);
     AssertEquals(0, RunCli('log', ['--oneline', '--max-count', '1']), 'Long max-count value is not treated as the log revision', PassedTests, TotalTests);
     AssertEquals(1, RunCli('log', ['--max-count']), 'log requires a commit limit value', PassedTests, TotalTests);
 
