@@ -81,7 +81,7 @@ procedure RunCliWorkflowTests(var PassedTests, TotalTests: Integer);
 const
   BinaryBlob = 'a'#0'b'#$FF#13#10;
 var
-  OriginalDir, TestDir, BoundaryDir, SavedIndex: string;
+  OriginalDir, TestDir, BoundaryDir, SavedIndex, SavedMath: string;
   BinaryBlobId, EmptyBlobId, ListingTreeId, IncompleteTreeId, TreeListing, CapturePath, DiffPath, DiffIndex: string;
   BinaryBlobObjectId, EmptyTreeId, MissingTreeId, HeadId: TObjectId;
   Code: Integer;
@@ -160,6 +160,20 @@ begin
     Code := RunCli('commit', ['-m', 'feat: initial project structure']);
     AssertEquals(0, Code, 'anvil commit succeeds', PassedTests, TotalTests);
     AssertTrue(FileExists(JoinPaths(TestDir, '.anvil/refs/heads/main')), 'Branch refs/heads/main exists', PassedTests, TotalTests);
+
+    SavedMath := ReadEntireFileString(JoinPaths(TestDir, 'math.pas'));
+    SavedIndex := ReadEntireFileString(JoinPaths(TestDir, '.anvil/index'));
+    try
+      AssertEquals(1, RunCli('rm', ['math.pas', 'missing-path-fixture.txt']),
+        'Removing several paths reports an unmatched operand', PassedTests, TotalTests);
+      AssertTrue(FileExists(JoinPaths(TestDir, 'math.pas')),
+        'Unmatched removal operand leaves the earlier working file intact', PassedTests, TotalTests);
+      AssertTrue(SavedIndex = ReadEntireFileString(JoinPaths(TestDir, '.anvil/index')),
+        'Unmatched removal operand leaves the index intact', PassedTests, TotalTests);
+    finally
+      if not FileExists(JoinPaths(TestDir, 'math.pas')) then
+        WriteEntireFileString(JoinPaths(TestDir, 'math.pas'), SavedMath);
+    end;
 
     { 6. anvil branch feature }
     Code := RunCli('branch', ['feature']);
