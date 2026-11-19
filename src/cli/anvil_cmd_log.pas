@@ -58,9 +58,12 @@ begin
     else
       StartRev := 'HEAD';
 
-    if not ResolveRevision(Ctx, StartRev, StartId) then
+    if not ResolveRevision(Ctx, StartRev, StartId, True) then
     begin
-      PrintError('fatal: your current branch does not have any commits yet');
+      if Length(PosArgs) > 0 then
+        PrintError('fatal: not a valid commit revision: ' + StartRev)
+      else
+        PrintError('fatal: your current branch does not have any commits yet');
       Exit;
     end;
 

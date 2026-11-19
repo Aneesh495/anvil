@@ -57,7 +57,7 @@ begin
         end
         else
         begin
-          if not ResolveRevision(Ctx, Arg, TargetId) then
+          if not ResolveRevision(Ctx, Arg, TargetId, True) then
           begin
             PrintError('fatal: invalid revision: ' + Arg);
             Exit;
@@ -67,7 +67,7 @@ begin
       end;
 
       { If no start points were specified, default to HEAD }
-      if (Length(Revisions) = 0) and ResolveRevision(Ctx, 'HEAD', TargetId) then
+      if (Length(Revisions) = 0) and ResolveRevision(Ctx, 'HEAD', TargetId, True) then
         Walker.Push(TargetId);
 
       EmittedCount := 0;
