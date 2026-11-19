@@ -33,7 +33,8 @@ function OpenRepoContext(out Ctx: TRepoContext; Required: Boolean = True): Boole
 procedure CloseRepoContext(var Ctx: TRepoContext);
 
 { High-level revision resolution helpers }
-function ResolveRevision(const Ctx: TRepoContext; const RevExpr: string; out Id: TObjectId): Boolean;
+function ResolveRevision(const Ctx: TRepoContext; const RevExpr: string; out Id: TObjectId;
+  RequireCommit: Boolean = False): Boolean;
 function ResolveRevisionRange(const Ctx: TRepoContext; const RangeExpr: string;
                               out IncludeIds, ExcludeIds: TObjectIdArray): Boolean;
 
@@ -95,7 +96,8 @@ begin
   end;
 end;
 
-function ResolveRevision(const Ctx: TRepoContext; const RevExpr: string; out Id: TObjectId): Boolean;
+function ResolveRevision(const Ctx: TRepoContext; const RevExpr: string; out Id: TObjectId;
+  RequireCommit: Boolean): Boolean;
 var
   ReflogMgr: TReflogManager;
   Parser: TRevisionParser;
@@ -104,7 +106,10 @@ begin
   try
     Parser := TRevisionParser.Create(Ctx.RefMgr, ReflogMgr, Ctx.ODB, Ctx.Algo);
     try
-      Result := Parser.Resolve(RevExpr, Id);
+      if RequireCommit then
+        Result := Parser.ResolveCommit(RevExpr, Id)
+      else
+        Result := Parser.Resolve(RevExpr, Id);
     finally
       Parser.Free;
     end;

@@ -38,6 +38,7 @@ type
 
     { Resolve a single revision expression (e.g. "HEAD~2^", "main@[1]", "abcd123") }
     function Resolve(const RevExpr: string; out ResolvedId: TObjectId): Boolean;
+    function ResolveCommit(const RevExpr: string; out CommitId: TObjectId): Boolean;
 
     { Parse range expression (e.g. "main..feature" or "main...feature") }
     function ParseRange(const RangeExpr: string;
@@ -241,12 +242,19 @@ begin
   Result := True;
 end;
 
+function TRevisionParser.ResolveCommit(const RevExpr: string; out CommitId: TObjectId): Boolean;
+var
+  ResolvedId: TObjectId;
+begin
+  Result := Resolve(RevExpr, ResolvedId) and StepParent(ResolvedId, 0, CommitId);
+end;
+
 function TRevisionParser.ParseRange(const RangeExpr: string;
                                    out IncludeIds, ExcludeIds: TObjectIdArray): Boolean;
 var
   TwoDotPos, ThreeDotPos: Integer;
   LeftStr, RightStr: string;
-  LeftId, RightId, CommitId: TObjectId;
+  LeftId, RightId: TObjectId;
   Finder: TLcaFinder;
 begin
   SetLength(IncludeIds, 0);
@@ -263,9 +271,7 @@ begin
     if LeftStr = '' then LeftStr := 'HEAD';
     if RightStr = '' then RightStr := 'HEAD';
 
-    if not Resolve(LeftStr, LeftId) or not Resolve(RightStr, RightId) then
-      Exit(False);
-    if not StepParent(LeftId, 0, CommitId) or not StepParent(RightId, 0, CommitId) then
+    if not ResolveCommit(LeftStr, LeftId) or not ResolveCommit(RightStr, RightId) then
       Exit(False);
 
     Finder := TLcaFinder.Create(FODB);
@@ -291,7 +297,7 @@ begin
     if LeftStr = '' then LeftStr := 'HEAD';
     if RightStr = '' then RightStr := 'HEAD';
 
-    if not Resolve(LeftStr, LeftId) or not Resolve(RightStr, RightId) then
+    if not ResolveCommit(LeftStr, LeftId) or not ResolveCommit(RightStr, RightId) then
       Exit(False);
 
     SetLength(ExcludeIds, 1);
@@ -304,7 +310,7 @@ begin
   end;
 
   { Single revision }
-  if Resolve(RangeExpr, RightId) then
+  if ResolveCommit(RangeExpr, RightId) then
   begin
     SetLength(IncludeIds, 1);
     IncludeIds[0] := RightId;
