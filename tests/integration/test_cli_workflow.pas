@@ -210,6 +210,14 @@ begin
       Odb.Free;
     end;
     CapturePath := JoinPaths(TestDir, '.anvil/cli-test-output');
+    AssertEquals(1, RunCli('commit-tree', [BinaryBlobId, '-m', 'invalid tree']),
+      'commit-tree rejects a blob as the root tree', PassedTests, TotalTests);
+    AssertEquals(1, RunCli('commit-tree', [ListingTreeId, '-p', BinaryBlobId, '-m', 'invalid parent']),
+      'commit-tree rejects a blob as a parent', PassedTests, TotalTests);
+    AssertEquals(0, RunCli('commit-tree', [ListingTreeId, '-p', 'HEAD', '-m', 'valid raw commit']),
+      'commit-tree accepts an existing tree and commit parent', PassedTests, TotalTests);
+    AssertCliOutput('rev-parse', ['HEAD'], CapturePath, ObjectIdToHex(HeadId) + LineEnding,
+      'commit-tree leaves HEAD unchanged', PassedTests, TotalTests);
     AssertCliOutput('rev-list', ['-n', '-1', 'HEAD~1..HEAD'], CapturePath,
       ObjectIdToHex(HeadId) + LineEnding, 'rev-list treats a negative limit as unlimited', PassedTests, TotalTests);
     AssertCliOutput('rev-list', ['--max-count=0'], CapturePath, '',
