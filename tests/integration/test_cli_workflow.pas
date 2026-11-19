@@ -160,16 +160,28 @@ begin
 
     Code := RunCli('commit', ['-m', 'feat(utils): add logger utility']);
     AssertEquals(0, Code, 'anvil commit in feature branch succeeds', PassedTests, TotalTests);
+    AssertEquals(0, RunCli('branch', ['deletion-fixture']),
+      'Create a second reference to the unmerged work', PassedTests, TotalTests);
 
     { 9. anvil checkout main }
     Code := RunCli('checkout', ['main']);
     AssertEquals(0, Code, 'anvil checkout main switches back', PassedTests, TotalTests);
     AssertTrue(not FileExists(JoinPaths(TestDir, 'utils.pas')), 'utils.pas not in main working tree', PassedTests, TotalTests);
+    AssertEquals(1, RunCli('branch', ['-d', 'deletion-fixture']),
+      'Branch deletion refuses an unmerged branch', PassedTests, TotalTests);
+    AssertTrue(FileExists(JoinPaths(TestDir, '.anvil/refs/heads/deletion-fixture')),
+      'A refused deletion preserves the branch reference', PassedTests, TotalTests);
+    AssertEquals(0, RunCli('branch', ['-D', 'deletion-fixture']),
+      'Explicit force deletes the unmerged branch reference', PassedTests, TotalTests);
 
     { 10. anvil merge feature }
     Code := RunCli('merge', ['feature']);
     AssertEquals(0, Code, 'anvil merge feature succeeds via fast-forward', PassedTests, TotalTests);
     AssertTrue(FileExists(JoinPaths(TestDir, 'utils.pas')), 'utils.pas present after merge', PassedTests, TotalTests);
+    AssertEquals(0, RunCli('branch', ['deletion-fixture', 'HEAD~1']),
+      'Create a reference to an ancestor of HEAD', PassedTests, TotalTests);
+    AssertEquals(0, RunCli('branch', ['--delete', 'deletion-fixture']),
+      'Branch deletion accepts an already merged ancestor', PassedTests, TotalTests);
 
     { 11. anvil log }
     Code := RunCli('log', ['--oneline']);
