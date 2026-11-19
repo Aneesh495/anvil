@@ -274,9 +274,11 @@ end;
 function TGraphRenderer.FormatGraphString(const Lines: TGraphLineArray): string;
 var
   I: Integer;
+  LineEnd: Integer;
   Row: string;
   ShortSha: string;
   Deco: string;
+  Subject: string;
 begin
   Result := '';
   for I := 0 to Length(Lines) - 1 do
@@ -284,12 +286,20 @@ begin
     ShortSha := Copy(ObjectIdToHex(Lines[I].CommitId), 1, 8);
     Deco := Lines[I].Decorations;
     if Deco <> '' then Deco := ' ' + Deco;
+    Subject := Lines[I].Message;
+    LineEnd := Pos(#10, Subject);
+    if LineEnd > 0 then
+    begin
+      if (LineEnd > 1) and (Subject[LineEnd - 1] = #13) then
+        Dec(LineEnd);
+      SetLength(Subject, LineEnd - 1);
+    end;
 
     Row := Format('%-6s %s%s %s (%s, %s)'#10, [
       Lines[I].Glyphs,
       ShortSha,
       Deco,
-      Lines[I].Message,
+      Subject,
       Lines[I].Author,
       Lines[I].CommitDate
     ]);
