@@ -1,0 +1,31 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Linux CLI and bindings
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install Free Pascal and build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fp-compiler fp-units-base fp-units-fcl zlib1g-dev
+      - name: Run Pascal tests
+        run: make test
+      - name: Build the CLI and shared library
+        run: make anvil lib
+      - name: Run Python binding tests
+        env:
+          PYTHONPATH: bindings/python
+        run: python3 -m unittest discover -s bindings/python/tests
