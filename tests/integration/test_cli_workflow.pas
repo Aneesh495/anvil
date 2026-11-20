@@ -649,6 +649,18 @@ begin
     AssertCliOutput('blame', ['missing.txt'], CapturePath, '',
       'Blame still fails for a missing file', PassedTests, TotalTests, 1);
 
+    SetCurrentDir(BoundaryDir);
+    WriteEntireFileString(JoinPaths(BoundaryDir, 'explicit-ignored.txt'), 'staged edit'#10);
+    WriteEntireFileString(JoinPaths(BoundaryDir, 'status-added.txt'), 'staged new file'#10);
+    AssertEquals(0, RunCli('add', ['explicit-ignored.txt', 'status-added.txt']),
+      'Stage an addition and a modification for short status', PassedTests, TotalTests);
+    WriteEntireFileString(JoinPaths(BoundaryDir, 'explicit-ignored.txt'), 'further working edit'#10);
+    if not DeleteFile(JoinPaths(BoundaryDir, 'status-added.txt')) then
+      raise Exception.Create('Could not remove the newly staged status fixture');
+    AssertCliOutput('status', ['--short'], CapturePath,
+      'AD status-added.txt' + LineEnding + 'MM explicit-ignored.txt' + LineEnding,
+      'Short status puts both change codes on one line per tracked path', PassedTests, TotalTests);
+
   finally
     SetCurrentDir(OriginalDir);
     DeleteDirectoryRecursive(TestDir);

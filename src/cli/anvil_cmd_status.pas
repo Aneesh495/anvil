@@ -17,13 +17,65 @@ unit anvil_cmd_status;
 interface
 
 uses
-  SysUtils, Classes,
+  SysUtils, Classes, FGL,
   anvil_types, anvil_errors, anvil_hash, anvil_object, anvil_odb,
   anvil_ref, anvil_worktree, anvil_cli_common;
 
 function RunCmdStatus(const Args: TStringArray): Integer;
 
 implementation
+
+type
+  TWorktreeChangeCodes = specialize TFPGMap<string, Char>;
+
+procedure PrintShortStatus(const Status: TWorktreeStatus);
+var
+  WorktreeCodes: TWorktreeChangeCodes;
+  Path: string;
+  I: Integer;
+
+  procedure PrintStagedPaths(const Paths: TStringArray; IndexCode: Char);
+  var
+    StagedPath: string;
+    Position: Integer;
+    WorktreeCode: Char;
+  begin
+    for StagedPath in Paths do
+    begin
+      WorktreeCode := ' ';
+      if WorktreeCodes.Find(StagedPath, Position) then
+      begin
+        WorktreeCode := WorktreeCodes.Data[Position];
+        WorktreeCodes.Data[Position] := ' ';
+      end;
+      Writeln(IndexCode, WorktreeCode, ' ', StagedPath);
+    end;
+  end;
+
+begin
+  WorktreeCodes := TWorktreeChangeCodes.Create;
+  try
+    WorktreeCodes.Sorted := True;
+    for Path in Status.UnstagedModified do
+      WorktreeCodes.Add(Path, 'M');
+    for Path in Status.UnstagedDeleted do
+      WorktreeCodes.Add(Path, 'D');
+
+    for Path in Status.ConflictedFiles do
+      Writeln('UU ', Path);
+    PrintStagedPaths(Status.StagedNew, 'A');
+    PrintStagedPaths(Status.StagedModified, 'M');
+    for Path in Status.StagedDeleted do
+      Writeln('D  ', Path);
+    for I := 0 to WorktreeCodes.Count - 1 do
+      if WorktreeCodes.Data[I] <> ' ' then
+        Writeln(' ', WorktreeCodes.Data[I], ' ', WorktreeCodes.Keys[I]);
+    for Path in Status.Untracked do
+      Writeln('?? ', Path);
+  finally
+    WorktreeCodes.Free;
+  end;
+end;
 
 function RunCmdStatus(const Args: TStringArray): Integer;
 var
@@ -78,22 +130,7 @@ begin
       Status := Scanner.ComputeStatus(HeadTreeId);
 
       if IsShort then
-      begin
-        for I := 0 to Length(Status.ConflictedFiles) - 1 do
-          Writeln('UU ', Status.ConflictedFiles[I]);
-        for I := 0 to Length(Status.StagedNew) - 1 do
-          Writeln('A  ', Status.StagedNew[I]);
-        for I := 0 to Length(Status.StagedModified) - 1 do
-          Writeln('M  ', Status.StagedModified[I]);
-        for I := 0 to Length(Status.StagedDeleted) - 1 do
-          Writeln('D  ', Status.StagedDeleted[I]);
-        for I := 0 to Length(Status.UnstagedModified) - 1 do
-          Writeln(' M ', Status.UnstagedModified[I]);
-        for I := 0 to Length(Status.UnstagedDeleted) - 1 do
-          Writeln(' D ', Status.UnstagedDeleted[I]);
-        for I := 0 to Length(Status.Untracked) - 1 do
-          Writeln('?? ', Status.Untracked[I]);
-      end
+        PrintShortStatus(Status)
       else
       begin
         Writeln('On branch ', BranchName);
