@@ -140,24 +140,35 @@ function RunCmdAdd(const Args: TStringArray): Integer;
 var
   Ctx: TRepoContext;
   Entry: TIndexEntry;
-  PosArgs: TStringArray;
-  I: Integer;
+  OptionArgs, PosArgs: TStringArray;
+  I, OptionCount, PathCount: Integer;
   TargetArg, TargetPath, RelPath: string;
   Ignore: TIgnoreMatcher;
 begin
   Result := 1;
   if not OpenRepoContext(Ctx) then Exit;
   try
-    PosArgs := GetPositionalArgs(Args);
+    OptionCount := 0;
+    while (OptionCount < Length(Args)) and (Args[OptionCount] <> '--') do
+      Inc(OptionCount);
+    OptionArgs := Copy(Args, 0, OptionCount);
+    PosArgs := GetPositionalArgs(OptionArgs);
+    if OptionCount < Length(Args) then
+    begin
+      PathCount := Length(PosArgs);
+      SetLength(PosArgs, PathCount + Length(Args) - OptionCount - 1);
+      for I := OptionCount + 1 to High(Args) do
+        PosArgs[PathCount + I - OptionCount - 1] := Args[I];
+    end;
     if Length(PosArgs) = 0 then
     begin
-      PrintUsage('add', '[-f | --force] <pathspec>...', 'Add file contents to the index');
+      PrintUsage('add', '[-f | --force] [--] <pathspec>...', 'Add file contents to the index');
       Exit;
     end;
 
     Ignore := nil;
     try
-      if not HasFlag(Args, '-f', '--force') then
+      if not HasFlag(OptionArgs, '-f', '--force') then
       begin
         Ignore := TIgnoreMatcher.Create(Ctx.RepoRoot);
         if FileExists(JoinPaths(Ctx.RepoRoot, '.gitignore')) then
