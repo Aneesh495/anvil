@@ -25,9 +25,10 @@ Initializes a new Anvil repository:
 ### `anvil status`
 Displays working tree status, staged changes, unstaged modifications, untracked files, and unresolved conflict stages.
 
-### `anvil add <path>...`
+### `anvil add [-f | --force] <path>...`
 Stages file modifications into the directory cache (`.anvil/index`):
 - `.` or `path`: Adds specified file or recursively adds matching directory contents.
+- `-f`, `--force`: Include ignored files within the specified paths.
 - Naming a tracked file that has been removed from disk stages its deletion.
 - Naming a directory also stages deletions of tracked files within that directory.
 - Automatically resolves merge conflict stages into Stage 0 if resolved.

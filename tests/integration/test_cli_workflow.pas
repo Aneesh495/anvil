@@ -604,10 +604,11 @@ begin
       'Track files before adding ignore rules', PassedTests, TotalTests);
     AssertEquals(0, RunCli('commit', ['-m', 'track ignore fixtures']),
       'Commit the ignore fixtures', PassedTests, TotalTests);
-    WriteEntireFileString(JoinPaths(BoundaryDir, '.gitignore'), 'ignored-add/'#10'explicit-ignored.txt'#10);
+    WriteEntireFileString(JoinPaths(BoundaryDir, '.gitignore'), 'ignored-add/'#10'explicit-ignored.txt'#10'root-force.txt'#10);
     WriteEntireFileString(JoinPaths(BoundaryDir, 'explicit-ignored.txt'), IgnoredUpdate);
     WriteEntireFileString(JoinPaths(BoundaryDir, 'ignored-add/kept.txt'), IgnoredUpdate);
     WriteEntireFileString(JoinPaths(BoundaryDir, 'ignored-add/new.txt'), 'untracked'#10);
+    WriteEntireFileString(JoinPaths(BoundaryDir, 'root-force.txt'), 'also ignored'#10);
     AssertEquals(0, RunCli('add', ['explicit-ignored.txt']), 'Add accepts a tracked path matching an ignore rule',
       PassedTests, TotalTests);
     BinaryBlobObjectId := HashGitObject(otBlob, PChar(IgnoredUpdate), Length(IgnoredUpdate));
@@ -624,6 +625,19 @@ begin
       AssertTrue(Index.FindAny('ignored-add/kept.txt', Entry) and ObjectIdEqual(Entry.Id, BinaryBlobObjectId),
         'Directory add stages tracked edits under an ignored directory', PassedTests, TotalTests);
       AssertTrue(not Index.FindAny('ignored-add/new.txt', Entry), 'Directory add leaves untracked ignored files unstaged',
+        PassedTests, TotalTests);
+    finally
+      Index.Free;
+    end;
+    AssertEquals(0, RunCli('add', ['-f', 'root-force.txt']), 'Force-add accepts an ignored file',
+      PassedTests, TotalTests);
+    WriteEntireFileString(JoinPaths(BoundaryDir, 'ignored-add/second-new.txt'), 'force added'#10);
+    AssertEquals(0, RunCli('add', ['--force', 'ignored-add']), 'Force-add accepts an ignored directory',
+      PassedTests, TotalTests);
+    Index := TIndex.Create(JoinPaths(BoundaryDir, '.anvil/index'));
+    try
+      AssertTrue(Index.FindAny('root-force.txt', Entry), 'Force-add stages the ignored file', PassedTests, TotalTests);
+      AssertTrue(Index.FindAny('ignored-add/second-new.txt', Entry), 'Force-add visits ignored directory descendants',
         PassedTests, TotalTests);
     finally
       Index.Free;
