@@ -78,7 +78,8 @@ var
 begin
   RelPath := MakeRelativePath(RepoRoot, FullPath);
   IsDirectory := DirectoryExists(FullPath);
-  if (RelPath <> '') and (RelPath <> '.') and Ignore.IsIgnored(RelPath, IsDirectory) then
+  if Assigned(Ignore) and (RelPath <> '') and (RelPath <> '.') and
+     Ignore.IsIgnored(RelPath, IsDirectory) then
   begin
     if IsDirectory then
     begin
@@ -150,14 +151,18 @@ begin
     PosArgs := GetPositionalArgs(Args);
     if Length(PosArgs) = 0 then
     begin
-      PrintUsage('add', '<pathspec>...', 'Add file contents to the index');
+      PrintUsage('add', '[-f | --force] <pathspec>...', 'Add file contents to the index');
       Exit;
     end;
 
-    Ignore := TIgnoreMatcher.Create(Ctx.RepoRoot);
+    Ignore := nil;
     try
-      if FileExists(JoinPaths(Ctx.RepoRoot, '.gitignore')) then
-        Ignore.LoadFile(JoinPaths(Ctx.RepoRoot, '.gitignore'));
+      if not HasFlag(Args, '-f', '--force') then
+      begin
+        Ignore := TIgnoreMatcher.Create(Ctx.RepoRoot);
+        if FileExists(JoinPaths(Ctx.RepoRoot, '.gitignore')) then
+          Ignore.LoadFile(JoinPaths(Ctx.RepoRoot, '.gitignore'));
+      end;
 
       for I := 0 to Length(PosArgs) - 1 do
       begin
