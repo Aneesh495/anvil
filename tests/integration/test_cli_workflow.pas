@@ -674,6 +674,23 @@ begin
     AssertCliOutput('status', ['--short'], CapturePath,
       'AD status-added.txt' + LineEnding + 'MM explicit-ignored.txt' + LineEnding,
       'Short status puts both change codes on one line per tracked path', PassedTests, TotalTests);
+    WriteEntireFileString(JoinPaths(BoundaryDir, '.gitignore'),
+      ReadEntireFileString(JoinPaths(BoundaryDir, '.gitignore')) + 'literal-excluded.txt'#10);
+    WriteEntireFileString(JoinPaths(BoundaryDir, '--force'), 'a literal filename'#10);
+    WriteEntireFileString(JoinPaths(BoundaryDir, 'literal-excluded.txt'), 'ignored by default'#10);
+    AssertEquals(0, RunCli('add', ['--', '--force']), 'Add can target a flag-shaped filename directly',
+      PassedTests, TotalTests);
+    AssertEquals(0, RunCli('add', ['--', '--force', '.']), 'Add accepts literal operands after the separator',
+      PassedTests, TotalTests);
+    Index := TIndex.Create(JoinPaths(BoundaryDir, '.anvil/index'));
+    try
+      AssertTrue(Index.FindAny('--force', Entry), 'Add stages a flag-shaped filename after the separator',
+        PassedTests, TotalTests);
+      AssertTrue(not Index.FindAny('literal-excluded.txt', Entry),
+        'A literal force filename does not change ignore processing', PassedTests, TotalTests);
+    finally
+      Index.Free;
+    end;
 
   finally
     SetCurrentDir(OriginalDir);
