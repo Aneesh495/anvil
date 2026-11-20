@@ -130,6 +130,12 @@ function ParseObjectPayload(ObjType: TObjectType; const RawData: Pointer; DataLe
 
 implementation
 
+uses
+  FGL;
+
+type
+  TTreeEntryPositions = specialize TFPGMap<string, Integer>;
+
 { TAnvilObject implementation }
 
 constructor TAnvilObject.Create;
@@ -387,6 +393,8 @@ var
   EntryName: string;
   EntryId: TObjectId;
   DigestLen: Integer;
+  Positions: TTreeEntryPositions;
+  MapIndex, EntryIndex: Integer;
 begin
   Clear;
   if DataLen <= 0 then
@@ -400,49 +408,68 @@ begin
   P := PByte(RawData);
   PEnd := P + DataLen;
 
-  while P < PEnd do
-  begin
-    { Find space terminating octal mode string }
-    SpacePos := P;
-    while (SpacePos < PEnd) and (SpacePos^ <> Byte(' ')) do
-      Inc(SpacePos);
-
-    if SpacePos >= PEnd then
-      raise ECorruptObject.CreateWithCode(ERR_CORRUPT_OBJECT, 'Corrupt tree: missing mode delimiter');
-
-    { Parse octal mode string }
-    ModeOctal := 0;
-    while P < SpacePos do
+  { Keep the last decoded entry for each name and sort only after parsing. }
+  Positions := TTreeEntryPositions.Create;
+  try
+    Positions.Sorted := True;
+    while P < PEnd do
     begin
-      if (P^ < Byte('0')) or (P^ > Byte('7')) then
-        raise ECorruptObject.CreateWithCode(ERR_CORRUPT_OBJECT, 'Invalid octal character in tree mode');
-      ModeOctal := (ModeOctal shl 3) or LongWord(P^ - Byte('0'));
-      Inc(P);
+      { Find space terminating octal mode string }
+      SpacePos := P;
+      while (SpacePos < PEnd) and (SpacePos^ <> Byte(' ')) do
+        Inc(SpacePos);
+
+      if SpacePos >= PEnd then
+        raise ECorruptObject.CreateWithCode(ERR_CORRUPT_OBJECT, 'Corrupt tree: missing mode delimiter');
+
+      { Parse octal mode string }
+      ModeOctal := 0;
+      while P < SpacePos do
+      begin
+        if (P^ < Byte('0')) or (P^ > Byte('7')) then
+          raise ECorruptObject.CreateWithCode(ERR_CORRUPT_OBJECT, 'Invalid octal character in tree mode');
+        ModeOctal := (ModeOctal shl 3) or LongWord(P^ - Byte('0'));
+        Inc(P);
+      end;
+      Inc(P); { Skip space }
+
+      { Find null byte terminating entry name }
+      NullPos := P;
+      while (NullPos < PEnd) and (NullPos^ <> 0) do
+        Inc(NullPos);
+
+      if NullPos >= PEnd then
+        raise ECorruptObject.CreateWithCode(ERR_CORRUPT_OBJECT, 'Corrupt tree: missing name null terminator');
+
+      SetString(EntryName, PChar(P), NullPos - P);
+      P := NullPos + 1;
+
+      { Check remaining buffer for raw binary digest }
+      if P + DigestLen > PEnd then
+        raise ECorruptObject.CreateWithCode(ERR_CORRUPT_OBJECT, 'Corrupt tree: truncated entry digest');
+
+      EntryId.Algorithm := Algo;
+      FillChar(EntryId.Digest, SizeOf(EntryId.Digest), 0);
+      Move(P^, EntryId.Digest[0], DigestLen);
+      Inc(P, DigestLen);
+
+      if Positions.Find(EntryName, MapIndex) then
+        EntryIndex := Positions.Data[MapIndex]
+      else
+      begin
+        EntryIndex := FCount;
+        EnsureCapacity(FCount + 1);
+        Positions.Add(EntryName, EntryIndex);
+        FEntries[EntryIndex].Name := EntryName;
+        Inc(FCount);
+      end;
+      FEntries[EntryIndex].Mode := OctalToFileMode(ModeOctal);
+      FEntries[EntryIndex].Id := EntryId;
     end;
-    Inc(P); { Skip space }
-
-    { Find null byte terminating entry name }
-    NullPos := P;
-    while (NullPos < PEnd) and (NullPos^ <> 0) do
-      Inc(NullPos);
-
-    if NullPos >= PEnd then
-      raise ECorruptObject.CreateWithCode(ERR_CORRUPT_OBJECT, 'Corrupt tree: missing name null terminator');
-
-    SetString(EntryName, PChar(P), NullPos - P);
-    P := NullPos + 1;
-
-    { Check remaining buffer for raw binary digest }
-    if P + DigestLen > PEnd then
-      raise ECorruptObject.CreateWithCode(ERR_CORRUPT_OBJECT, 'Corrupt tree: truncated entry digest');
-
-    EntryId.Algorithm := Algo;
-    FillChar(EntryId.Digest, SizeOf(EntryId.Digest), 0);
-    Move(P^, EntryId.Digest[0], DigestLen);
-    Inc(P, DigestLen);
-
-    AddEntry(OctalToFileMode(ModeOctal), EntryName, EntryId);
+  finally
+    Positions.Free;
   end;
+  SortEntries;
 end;
 
 { TCommitObject implementation }
