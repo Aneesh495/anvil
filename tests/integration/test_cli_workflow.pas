@@ -367,6 +367,10 @@ begin
       'Graph log rejects a non-commit start even with a zero limit', PassedTests, TotalTests);
     AssertCliOutput('rev-list', ['--max-count=0'], CapturePath, '',
       'rev-list emits nothing with a zero limit', PassedTests, TotalTests);
+    AssertCliOutput('rev-list', ['--count', 'HEAD~1..HEAD'], CapturePath, '1' + LineEnding,
+      'rev-list counts commits in a range without printing object IDs', PassedTests, TotalTests);
+    AssertCliOutput('rev-list', ['--count', '--max-count=0', 'HEAD'], CapturePath, '0' + LineEnding,
+      'rev-list count prints zero with a zero limit', PassedTests, TotalTests);
     AssertCliOutput('log', ['--graph', '--max-count=0'], CapturePath, '',
       'log graph emits nothing with a zero limit', PassedTests, TotalTests);
     AssertEquals(1, RunCli('diff', [BinaryBlobId, BinaryBlobId]),
