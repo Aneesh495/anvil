@@ -71,6 +71,12 @@ function GetWorkingTreeStatus(const AWorkingDir, AGitDir: string;
 
 implementation
 
+uses
+  FGL;
+
+type
+  THeadPathPositions = specialize TFPGMap<string, Integer>;
+
 constructor TWorktreeScanner.Create(const AWorkingDir, AGitDir: string;
                                     AODB: TObjectDatabase; AIndex: TIndex;
                                     AIgnore: TIgnoreMatcher);
@@ -174,12 +180,14 @@ var
   SR: TSearchRec;
   FileBlobId: TObjectId;
 
-  { Head tree map }
+  { Preserve tree order for staged deletions. }
   HeadEntries: array of record
     Path: string;
     Id: TObjectId;
   end;
   HeadCount: Integer;
+  HeadPositions: THeadPathPositions;
+  HeadSeen: array of Boolean;
 
   procedure FlattenTree(const Prefix: string; const TreeId: TObjectId);
   var
@@ -216,6 +224,7 @@ var
             SetLength(HeadEntries, Length(HeadEntries) * 2 + 16);
           HeadEntries[HeadCount].Path := SubPrefix;
           HeadEntries[HeadCount].Id := TreeEnt.Id;
+          HeadPositions.Add(SubPrefix, HeadCount);
           Inc(HeadCount);
         end;
       end;
@@ -224,25 +233,6 @@ var
     end;
   end;
 
-  function FindHeadEntry(const APath: string; out AId: TObjectId): Boolean;
-  var
-    K: Integer;
-  begin
-    for K := 0 to HeadCount - 1 do
-    begin
-      if HeadEntries[K].Path = APath then
-      begin
-        AId := HeadEntries[K].Id;
-        Exit(True);
-      end;
-    end;
-    Result := False;
-  end;
-
-var
-  HeadId: TObjectId;
-  HeadSeen: array of Boolean;
-  FoundHead: Boolean;
 begin
   SetLength(Result.StagedNew, 0);
   SetLength(Result.StagedModified, 0);
@@ -259,39 +249,37 @@ begin
   if Result.HasConflicts then
     Result.ConflictedFiles := FIndex.GetConflictPaths;
 
-  { 1. Flatten HEAD tree for Index vs HEAD comparison }
-  SetLength(HeadEntries, 32);
-  HeadCount := 0;
-  FlattenTree('', HeadTreeId);
-  SetLength(HeadSeen, HeadCount);
-  for I := 0 to HeadCount - 1 do
-    HeadSeen[I] := False;
+  HeadPositions := THeadPathPositions.Create;
+  try
+    { 1. Collect HEAD paths, then sort them once for lookup. }
+    SetLength(HeadEntries, 32);
+    HeadCount := 0;
+    FlattenTree('', HeadTreeId);
+    HeadPositions.Sorted := True;
+    SetLength(HeadSeen, HeadCount);
 
-  { 2. Compare Index entries against HEAD }
-  for I := 0 to FIndex.Count - 1 do
-  begin
-    Entry := FIndex.GetEntry(I);
-    FoundHead := False;
-    for J := 0 to HeadCount - 1 do
+    { 2. Compare Index entries against HEAD }
+    for I := 0 to FIndex.Count - 1 do
     begin
-      if HeadEntries[J].Path = Entry.Path then
+      Entry := FIndex.GetEntry(I);
+      if HeadPositions.Find(Entry.Path, J) then
       begin
-        FoundHead := True;
+        J := HeadPositions.Data[J];
         HeadSeen[J] := True;
         if (Entry.Stage = 0) and not ObjectIdEqual(HeadEntries[J].Id, Entry.Id) then
         begin
           SetLength(Result.StagedModified, Length(Result.StagedModified) + 1);
           Result.StagedModified[Length(Result.StagedModified) - 1] := Entry.Path;
         end;
-        Break;
+      end
+      else if Entry.Stage = 0 then
+      begin
+        SetLength(Result.StagedNew, Length(Result.StagedNew) + 1);
+        Result.StagedNew[Length(Result.StagedNew) - 1] := Entry.Path;
       end;
     end;
-
-    if not FoundHead and (Entry.Stage = 0) then
-    begin
-      SetLength(Result.StagedNew, Length(Result.StagedNew) + 1);
-      Result.StagedNew[Length(Result.StagedNew) - 1] := Entry.Path;
-    end;
+  finally
+    HeadPositions.Free;
   end;
 
   { Check staged deletions (in HEAD but not in Index) }
