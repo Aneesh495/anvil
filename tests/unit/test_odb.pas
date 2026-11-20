@@ -71,6 +71,7 @@ var
   Packfile: TPackfile;
   PackReadType: TObjectType;
   PackReadData: TByteArray;
+  RawTree: RawByteString;
 begin
   Writeln('=== Running Object Database (ODB) Test Suite ===');
 
@@ -137,6 +138,27 @@ begin
         finally
           ReadObj.Free;
         end;
+      finally
+        Tree.Free;
+      end;
+
+      { Noncanonical input still decodes in Git order, with the last name winning. }
+      RawTree := '100644 z.txt'#0 + StringOfChar('1', 20) +
+                 '40000 src'#0 + StringOfChar('2', 20) +
+                 '100644 src.note'#0 + StringOfChar('2', 20) +
+                 '100755 z.txt'#0 + StringOfChar('3', 20);
+      Tree := TTreeObject.Create;
+      try
+        Tree.Deserialize(@RawTree[1], Length(RawTree));
+        AssertTrue(Tree.Count = 3, 'Tree decoder coalesces repeated names', PassedTests, TotalTests);
+        AssertEquals('src.note', Tree.GetEntry(0).Name, 'Decoded tree sorts a file before a directory suffix',
+          PassedTests, TotalTests);
+        AssertEquals('src', Tree.GetEntry(1).Name, 'Decoded directory uses Git tree ordering',
+          PassedTests, TotalTests);
+        Entry := Tree.GetEntry(2);
+        AssertTrue((Entry.Name = 'z.txt') and (Entry.Mode = fmExecutable) and
+          ObjectIdEqual(Entry.Id, HexToObjectId(StringOfChar('3', 40))),
+          'Decoded tree keeps the last mode and object ID for a repeated name', PassedTests, TotalTests);
       finally
         Tree.Free;
       end;
