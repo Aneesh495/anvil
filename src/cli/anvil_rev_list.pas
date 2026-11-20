@@ -28,11 +28,11 @@ var
   Ctx: TRepoContext;
   Walker: TCommitWalker;
   MaxCount: Integer;
-  EmittedCount: Integer;
+  CommitCount: Integer;
   CommitId: TObjectId;
   Revisions: TStringArray;
   Arg, Revision: string;
-  Exclude: Boolean;
+  Exclude, CountOnly: Boolean;
   IncludeIds, ExcludeIds: TObjectIdArray;
   TargetId: TObjectId;
 begin
@@ -40,6 +40,7 @@ begin
   if not OpenRepoContext(Ctx) then Exit;
   try
     if not ParseCommitLimit(Args, MaxCount) then Exit;
+    CountOnly := HasFlag(Args, '', '--count');
 
     Revisions := GetPositionalArgs(Args);
     Walker := TCommitWalker.Create(Ctx.ODB, csoTopological);
@@ -79,12 +80,15 @@ begin
       if (Length(Revisions) = 0) and ResolveRevision(Ctx, 'HEAD', TargetId, True) then
         Walker.Push(TargetId);
 
-      EmittedCount := 0;
-      while (EmittedCount < MaxCount) and Walker.Next(CommitId) do
+      CommitCount := 0;
+      while (CommitCount < MaxCount) and Walker.Next(CommitId) do
       begin
-        Writeln(ObjectIdToHex(CommitId));
-        Inc(EmittedCount);
+        if not CountOnly then
+          Writeln(ObjectIdToHex(CommitId));
+        Inc(CommitCount);
       end;
+      if CountOnly then
+        Writeln(CommitCount);
 
       Result := 0;
     finally
